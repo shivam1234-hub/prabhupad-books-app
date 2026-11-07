@@ -1,0 +1,67 @@
+# Packaging config for the Vedabase desktop app.
+#
+# The renderer is the Expo web bundle exported into dist-desktop/ by
+# `npm run desktop:bundle`, so that directory must exist before building.
+appId: io.vedabase.desktop
+productName: Vedabase
+copyright: Content from vedabase.io
+
+directories:
+  output: release
+  buildResources: desktop/build
+
+# The root package.json is Expo's, whose `main` points at index.ts. Override it
+# for the packaged app so Electron boots the desktop main process instead.
+extraMetadata:
+  main: desktop/main.js
+
+# Only the desktop shell, the exported bundle, and the one runtime dependency.
+# Without the node_modules exclusion electron-builder would package the entire
+# React Native / Expo toolchain (hundreds of MB) that the desktop app never loads.
+files:
+  - desktop/**/*
+  - dist-desktop/**/*
+  - '!**/node_modules/**/*'
+  - node_modules/node-sqlite3-wasm/**/*
+
+# node-sqlite3-wasm reads its .wasm binary off disk at startup; keeping it out of
+# the asar archive avoids any archive-path resolution surprises.
+asarUnpack:
+  - node_modules/node-sqlite3-wasm/**/*
+
+win:
+  icon: desktop/build/icon.png
+  target:
+    # Installer for normal use...
+    - target: nsis
+      arch: [x64]
+    # ...and a single self-contained .exe for running off a USB stick with no install.
+    - target: portable
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Vedabase
+  # Keep the downloaded offline library when uninstalling — it can be many
+  # thousands of verses the user waited a long time to fetch.
+  deleteAppDataOnUninstall: false
+
+portable:
+  artifactName: Vedabase-${version}-portable.exe
+
+mac:
+  icon: desktop/build/icon.png
+  category: public.app-category.book
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+
+linux:
+  icon: desktop/build/icon.png
+  category: Education
+  target:
+    - AppImage

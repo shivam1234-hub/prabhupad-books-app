@@ -1,0 +1,11 @@
+{
+  "name": "wallpaper-setter",
+  "version": "1.0.0",
+  "description": "Sets device wallpaper directly via Android WallpaperManager",
+  "main": "src/index",
+  "types": "src/index",
+  "peerDependencies": {
+    "expo": "*",
+    "react-native": "*"
+  }
+}

@@ -1,0 +1,50 @@
+# Builds the Windows installer on a real Windows runner and attaches it to the
+# run (and to the release, when the workflow is triggered by a tag).
+#
+# `npm run desktop:win` also works from macOS/Linux because the app has no
+# native modules — this exists so a downloadable .exe can be produced without a
+# Windows machine, and so every tag gets a reproducible build.
+name: Build Windows desktop app
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Expo SDK 56's export step is known to break on Node 18 in this project.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20.20.2'
+          cache: npm
+
+      # .npmrc sets legacy-peer-deps, which the pinned canary expo-av requires.
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export web bundle
+        run: npm run desktop:bundle
+
+      - name: Build installer + portable exe
+        run: npx electron-builder --win --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vedabase-windows
+          path: |
+            release/*.exe
+            release/*.exe.blockmap
+          if-no-files-found: error
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*.exe

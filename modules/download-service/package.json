@@ -1,0 +1,11 @@
+{
+  "name": "download-service",
+  "version": "1.0.0",
+  "description": "Android foreground service that keeps book downloads running after the app is closed",
+  "main": "src/index",
+  "types": "src/index",
+  "peerDependencies": {
+    "expo": "*",
+    "react-native": "*"
+  }
+}

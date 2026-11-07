@@ -1,0 +1,51 @@
+// Auto-generated from vedabase.io (do not hand-edit).
+// Rāmāyaṇa (retold by Kṛṣṇa Dharma dasa): 3 parts, each chapter a prose page /rkd/{part}/{ch}/.
+import type { CantoPart } from "@/types";
+
+export const RKD_PARTS: CantoPart[] = [
+  { number: 1, title: "Part One – Betrayed", chapters: [
+    { number: 1, title: "King Daśaratha’s Longing", verseCount: 1, cantoPart: 1 },
+    { number: 2, title: "The Birth of Rāma", verseCount: 1, cantoPart: 1 },
+    { number: 3, title: "With the Sage Viśvāmitra", verseCount: 1, cantoPart: 1 },
+    { number: 4, title: "The Trial of Strength", verseCount: 1, cantoPart: 1 },
+    { number: 5, title: "Crooked Advice for Queen Kaikeyi", verseCount: 1, cantoPart: 1 },
+    { number: 6, title: "The King’s Heartbreak", verseCount: 1, cantoPart: 1 },
+    { number: 7, title: "Rāma Agrees to Depart", verseCount: 1, cantoPart: 1 },
+    { number: 8, title: "Grief and Fury", verseCount: 1, cantoPart: 1 },
+    { number: 9, title: "Sītā’s Plea", verseCount: 1, cantoPart: 1 },
+    { number: 10, title: "Sad Farewells", verseCount: 1, cantoPart: 1 },
+  ] },
+  { number: 2, title: "Part Two", chapters: [
+    { number: 1, title: "Into the Forest", verseCount: 1, cantoPart: 2 },
+    { number: 2, title: "Devastation in Ayodhya", verseCount: 1, cantoPart: 2 },
+    { number: 3, title: "Bharata’s Return", verseCount: 1, cantoPart: 2 },
+    { number: 4, title: "‘We Shall Bring Rāma Back’", verseCount: 1, cantoPart: 2 },
+    { number: 5, title: "Rāma Remains Firm", verseCount: 1, cantoPart: 2 },
+    { number: 6, title: "The Forest Sages", verseCount: 1, cantoPart: 2 },
+    { number: 7, title: "The Rākṣasī Shurpanakha", verseCount: 1, cantoPart: 2 },
+    { number: 8, title: "Rāvaṇa’s Lust is Incited", verseCount: 1, cantoPart: 2 },
+    { number: 9, title: "The Kidnapping of Sītā", verseCount: 1, cantoPart: 2 },
+    { number: 10, title: "Rāma’s Terrible Discovery", verseCount: 1, cantoPart: 2 },
+    { number: 11, title: "Rāma Meets the Monkeys", verseCount: 1, cantoPart: 2 },
+    { number: 12, title: "The Search Begins", verseCount: 1, cantoPart: 2 },
+    { number: 13, title: "Hanumān Leaps to Lanka", verseCount: 1, cantoPart: 2 },
+    { number: 14, title: "Sītā is Found", verseCount: 1, cantoPart: 2 },
+  ] },
+  { number: 3, title: "Part Three – War", chapters: [
+    { number: 1, title: "The Army Sets Off", verseCount: 1, cantoPart: 3 },
+    { number: 2, title: "Panic in Lanka", verseCount: 1, cantoPart: 3 },
+    { number: 3, title: "Rāma Confronts the Ocean", verseCount: 1, cantoPart: 3 },
+    { number: 4, title: "Rāvaṇa’s Evil Trickery", verseCount: 1, cantoPart: 3 },
+    { number: 5, title: "The War Begins", verseCount: 1, cantoPart: 3 },
+    { number: 6, title: "Garuḍa to the Rescue", verseCount: 1, cantoPart: 3 },
+    { number: 7, title: "Rāvaṇa Enters the Fray", verseCount: 1, cantoPart: 3 },
+    { number: 8, title: "The Colossal Demon", verseCount: 1, cantoPart: 3 },
+    { number: 9, title: "Carnage Among the Rākṣasas", verseCount: 1, cantoPart: 3 },
+    { number: 10, title: "Rāma and Lakṣman Laid Low", verseCount: 1, cantoPart: 3 },
+    { number: 11, title: "Lakṣman Battles Indrajit", verseCount: 1, cantoPart: 3 },
+    { number: 12, title: "Rāvaṇa Exhibits His Prowess", verseCount: 1, cantoPart: 3 },
+    { number: 13, title: "The Final Battle", verseCount: 1, cantoPart: 3 },
+    { number: 14, title: "Sītā’s Ordeal", verseCount: 1, cantoPart: 3 },
+    { number: 15, title: "Back to Ayodhya", verseCount: 1, cantoPart: 3 },
+  ] },
+];
