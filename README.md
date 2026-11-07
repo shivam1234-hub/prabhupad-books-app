@@ -1,5 +1,12 @@
 # Vedabase Mobile App
 
+<p><a href="https://github.com/shivam1234-hub/prabhupad-books-app/releases/latest/download/Vedabase.apk"><b>⬇️ Download APK</b></a> · <a href="https://github.com/shivam1234-hub/prabhupad-books-app/releases/latest">all versions</a><br><sub>Android: open the downloaded file and tap Install. You may need to allow installs from your browser first.</sub></p>
+
+## Screenshots
+
+<table><tr><td align="center"><img src="docs/screenshots/vb-home.jpg" width="200"><br><sub>Library</sub></td><td align="center"><img src="docs/screenshots/vb-book.jpg" width="200"><br><sub>Bhagavad-gita</sub></td><td align="center"><img src="docs/screenshots/vb-chapter.jpg" width="200"><br><sub>Chapter</sub></td><td align="center"><img src="docs/screenshots/vb-verse.jpg" width="200"><br><sub>Verse with word-for-word</sub></td></tr></table>
+
+
 A full-featured mobile app for Srila Prabhupada's complete library from [vedabase.io](https://vedabase.io), built with React Native + Expo.
 
 ## Features
