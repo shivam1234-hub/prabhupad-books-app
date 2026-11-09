@@ -3,6 +3,39 @@ import { View, Text, StyleSheet, Pressable, Platform, LayoutChangeEvent, Interac
 import { Verse } from '@/types';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore, fontSizeMap } from '@/store/settingsStore';
+import { findCitations, Citation, LibraryRef } from '@/services/purport/citations';
+
+/** A scripture reference in the purport that the library can open. */
+export type LinkedCitation = Citation & { ref: LibraryRef };
+/** Tap on a reference; `x`/`y` are window coordinates of the tap. */
+export type CitationPress = (c: LinkedCitation, at: { x: number; y: number }) => void;
+
+type Segment = { text: string; cite?: LinkedCitation };
+
+/** `text` cut into plain runs and the references the library has. */
+function citationSegments(text: string, inBook?: string): Segment[] {
+  let cites: LinkedCitation[];
+  try {
+    cites = findCitations(text, inBook).filter((c): c is LinkedCitation => !!c.ref);
+  } catch {
+    return [{ text }];
+  }
+  if (!cites.length) return [{ text }];
+  const out: Segment[] = [];
+  let i = 0;
+  for (const c of cites) {
+    if (c.start < i) continue;
+    if (c.start > i) out.push({ text: text.slice(i, c.start) });
+    // "Bhagavad-gītā (2.13)": the match stops before ")" — underline it too.
+    let end = c.end;
+    const linked = text.slice(c.start, end);
+    if (text[end] === ')' && linked.split('(').length > linked.split(')').length) end++;
+    out.push({ text: text.slice(c.start, end), cite: c });
+    i = end;
+  }
+  if (i < text.length) out.push({ text: text.slice(i) });
+  return out;
+}
 
 // Word-for-word synonyms come as "word – meaning; word – meaning; …".
 // Split into pairs so the Sanskrit word can be colored apart from its meaning.
@@ -181,13 +214,33 @@ const WORDS_PER_FRAME = 250;
  * One paragraph of a section. Kept as its own <Text> (and memoised) so that
  * arming it for word lookup re-renders and re-lays out only this paragraph.
  */
-const Paragraph = memo(function Paragraph({ text, style, sanskrit, onWord, armed, lookupKind }: {
+const Paragraph = memo(function Paragraph({
+  text, style, sanskrit, onWord, armed, lookupKind, onCitation, inBook, linkColor,
+}: {
   text: string; style: any; sanskrit: boolean; onWord?: WordLookup; armed: boolean;
   lookupKind: 'skt' | 'en';
+  /** Purport only: references to other verses become tappable links. */
+  onCitation?: CitationPress; inBook?: string; linkColor?: string;
 }) {
+  const segments = useMemo(
+    () => (onCitation ? citationSegments(text, inBook) : [{ text }] as Segment[]),
+    [text, inBook, !!onCitation],
+  );
   return (
     <Text style={style} selectable={!onWord || IS_WEB} {...lookupMark(lookupKind)}>
-      <Words text={text} sanskrit={sanskrit} onWord={onWord} armed={armed} />
+      {segments.map((seg, i) => (seg.cite ? (
+        <Text
+          key={i}
+          style={[styles.citation, { color: linkColor, textDecorationColor: linkColor }]}
+          onPress={(e) => onCitation?.(seg.cite!, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
+          accessibilityRole="link"
+          suppressHighlighting={false}
+        >
+          {seg.text}
+        </Text>
+      ) : (
+        <Words key={i} text={seg.text} sanskrit={sanskrit} onWord={onWord} armed={armed} />
+      )))}
     </Text>
   );
 });
@@ -220,11 +273,14 @@ export interface VerseContentSearchProps {
   onLookupReady?: () => void;
   /** Receives a function that measures match `index`'s y relative to a view. */
   onFindLocator?: (locate: FindLocator) => void;
+  /** Tap on a scripture reference in the purport ("Bg. 2.13"). */
+  onCitationPress?: CitationPress;
 }
 
 export function VerseContent({
   verse, query = '', activeMatch = 0, display,
   onMatchSectionsChange, onSectionLayout, onContainerLayout, onWordLookup, onLookupReady, onFindLocator,
+  onCitationPress,
 }: { verse: Verse; display?: VerseDisplay } & VerseContentSearchProps) {
   const { colors, isDark } = useTheme();
   const settings = useSettingsStore(s => s.settings);
@@ -398,7 +454,7 @@ export function VerseContent({
                 </Text>
               ))}
             </Text>
-          ) : !searching && onWordLookup && s.key !== 'devanagari' ? (
+          ) : !searching && s.key !== 'devanagari' && (onWordLookup || (s.key === 'purport' && onCitationPress)) ? (
             <View style={{ gap: StyleSheet.flatten(s.style).lineHeight }}>
               {units.byKey[s.key].paras.map((p, i) => (
                 <Paragraph
@@ -409,6 +465,9 @@ export function VerseContent({
                   onWord={onWordLookup}
                   armed={armedUnits > units.byKey[s.key].start + i}
                   lookupKind={s.key === 'transliteration' ? 'skt' : 'en'}
+                  onCitation={s.key === 'purport' ? onCitationPress : undefined}
+                  inBook={verse.bookSlug}
+                  linkColor={colors.primary}
                 />
               ))}
             </View>
@@ -470,4 +529,5 @@ const styles = StyleSheet.create({
   synonyms: { lineHeight: 26 },
   translation: { lineHeight: 28, fontWeight: '500' },
   purport: { lineHeight: 28 },
+  citation: { fontWeight: '700', textDecorationLine: 'underline' },
 });
