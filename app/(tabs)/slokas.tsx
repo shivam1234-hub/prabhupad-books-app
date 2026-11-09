@@ -1,10 +1,12 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   FlatList, Pressable, SectionList, StyleSheet, Text, TextInput, View,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useMemorizedStore } from '@/store/memorizedStore';
+import { MemorizedCheck } from '@/components/MemorizedCheck';
 import {
   PRAYERS, QUOTED_VERSES, RANKED, fold, firstLine, matchesQuery, quotedVerse, rankedTitle, sectionName,
 } from '@/services/mostQuoted';
@@ -15,6 +17,13 @@ const MODES: { key: Mode; label: string }[] = [
   { key: 'ranked', label: 'Most Quoted' },
   { key: 'prayers', label: 'Prayers' },
   { key: 'all', label: 'All Verses' },
+];
+
+type Show = 'all' | 'todo' | 'done';
+const SHOWS: { key: Show; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'todo', label: 'To learn' },
+  { key: 'done', label: 'Memorized ✓' },
 ];
 
 /**
@@ -30,33 +39,61 @@ export default function SlokasScreen() {
   const [mode, setMode] = useState<Mode>('ranked');
   const [query, setQuery] = useState('');
   const q = fold(query.trim()).replace(/\s+/g, ' ');
+  const [show, setShow] = useState<Show>('all');
+  const memo = useMemorizedStore(s => s.ids);
+  const loadMemo = useMemorizedStore(s => s.load);
+  const toggle = useMemorizedStore(s => s.toggle);
+  const setMemo = useMemorizedStore(s => s.set);
+  useEffect(() => { loadMemo(); }, [loadMemo]);
+
+  /** Keep an item under the To learn / Memorized filter. */
+  const keep = (done: boolean) => show === 'all' || (show === 'done') === done;
+  const prayerDone = (ids: number[]) => ids.every(id => memo[id]);
 
   const ranked = useMemo(
     () => RANKED.map((r, i) => ({ r, i })).filter(({ r }) =>
-      matchesQuery(quotedVerse(r.verseId), q, `${r.firstLine} ${r.source}`)),
-    [q],
+      matchesQuery(quotedVerse(r.verseId), q, `${r.firstLine} ${r.source}`)
+      && keep(r.verseId != null && !!memo[r.verseId])),
+    [q, show, memo],
   );
   const prayers = useMemo(
     () => PRAYERS.map((p, i) => ({ p, i })).filter(({ p }) =>
-      !q || fold(p.title).includes(q) || p.verseIds.some(id => matchesQuery(quotedVerse(id), q))),
-    [q],
+      (!q || fold(p.title).includes(q) || p.verseIds.some(id => matchesQuery(quotedVerse(id), q)))
+      && keep(prayerDone(p.verseIds))),
+    [q, show, memo],
   );
   const sections = useMemo(() => {
     const out: { title: string; data: { id: number; i: number }[] }[] = [];
     QUOTED_VERSES.forEach((v, i) => {
-      if (!matchesQuery(v, q)) return;
+      if (!matchesQuery(v, q) || !keep(!!memo[v.id])) return;
       const title = sectionName(v.section);
       if (out[out.length - 1]?.title !== title) out.push({ title, data: [] });
       out[out.length - 1].data.push({ id: v.id, i });
     });
     return out;
-  }, [q]);
+  }, [q, show, memo]);
+
+  // Progress for the open list.
+  const progress = useMemo(() => {
+    if (mode === 'ranked') {
+      return { done: RANKED.filter(r => r.verseId != null && memo[r.verseId]).length, total: RANKED.length, unit: 'verses' };
+    }
+    if (mode === 'prayers') {
+      return { done: PRAYERS.filter(p => prayerDone(p.verseIds)).length, total: PRAYERS.length, unit: 'prayers' };
+    }
+    return { done: QUOTED_VERSES.filter(v => memo[v.id]).length, total: QUOTED_VERSES.length, unit: 'verses' };
+  }, [mode, memo]);
 
   const open = (list: Mode, i: number) => router.push({ pathname: '/sloka', params: { list, i: String(i) } });
 
   const empty = (
-    <Text style={[styles.empty, { color: colors.textMuted }]}>No verse matches “{query.trim()}”.</Text>
+    <Text style={[styles.empty, { color: colors.textMuted }]}>
+      {q ? `No verse matches “${query.trim()}”.`
+        : show === 'done' ? 'Nothing ticked yet. Tick the box beside a verse once you know it by heart.'
+          : 'All memorized — jaya!'}
+    </Text>
   );
+  const pct = progress.total ? progress.done / progress.total : 0;
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
@@ -87,6 +124,28 @@ export default function SlokasScreen() {
           autoCapitalize="none"
           clearButtonMode="while-editing"
         />
+        <View style={styles.progressRow}>
+          <View style={[styles.bar, { backgroundColor: colors.surfaceElevated }]}>
+            <View style={[styles.barFill, { width: `${pct * 100}%`, backgroundColor: colors.primary }]} />
+          </View>
+          <Text style={[styles.progressText, { color: colors.textSecondary }]}>
+            {progress.done} / {progress.total} {progress.unit} memorized
+          </Text>
+        </View>
+        <View style={styles.chips}>
+          {SHOWS.map(f => {
+            const on = f.key === show;
+            return (
+              <Pressable
+                key={f.key}
+                onPress={() => setShow(f.key)}
+                style={[styles.chip, { borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primaryLight : 'transparent' }]}
+              >
+                <Text style={[styles.chipText, { color: on ? colors.primaryDark : colors.textSecondary }]}>{f.label}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </View>
 
       {mode === 'ranked' && (
@@ -128,7 +187,9 @@ export default function SlokasScreen() {
                       </Text>
                     )}
                   </View>
-                  <Text style={[styles.chev, { color: colors.textMuted }]}>›</Text>
+                  {r.verseId != null && (
+                    <MemorizedCheck checked={!!memo[r.verseId]} onPress={() => toggle(r.verseId!)} />
+                  )}
                 </Pressable>
               </View>
             );
@@ -165,11 +226,18 @@ export default function SlokasScreen() {
                     </Text>
                   )}
                   <Text style={[styles.meta, { color: colors.textMuted }]}>
-                    {p.verseIds.length > 1 ? `${p.verseIds.length} verses` : '1 verse'}
+                    {p.verseIds.length > 1
+                      ? `${p.verseIds.filter(id => memo[id]).length ? `${p.verseIds.filter(id => memo[id]).length} of ` : ''}${p.verseIds.length} verses`
+                      : '1 verse'}
                     {p.author ? ` · ${p.author}` : ''}
                   </Text>
                 </View>
-                <Text style={[styles.chev, { color: colors.textMuted }]}>›</Text>
+                <MemorizedCheck
+                  checked={prayerDone(p.verseIds)}
+                  partial={p.verseIds.some(id => memo[id])}
+                  onPress={() => setMemo(p.verseIds, !prayerDone(p.verseIds))}
+                  label="Whole prayer memorized"
+                />
               </Pressable>
             );
           }}
@@ -205,7 +273,7 @@ export default function SlokasScreen() {
                   </Text>
                   <Text style={[styles.rowTitle, { color: colors.textSecondary }]} numberOfLines={1}>{v.title}</Text>
                 </View>
-                <Text style={[styles.chev, { color: colors.textMuted }]}>›</Text>
+                <MemorizedCheck checked={!!memo[id]} onPress={() => toggle(id)} size={24} />
               </Pressable>
             );
           }}
@@ -241,7 +309,6 @@ const styles = StyleSheet.create({
   verseLine: { fontStyle: 'italic', fontWeight: '600' },
   rowTitle: { fontSize: 12, fontWeight: '700' },
   snippet: { lineHeight: 18, marginTop: 2 },
-  chev: { fontSize: 22, fontWeight: '300' },
   prayerIcon: { fontSize: 22 },
   prayerTitle: { fontWeight: '800' },
   meta: { fontSize: 12, marginTop: 1 },
@@ -250,5 +317,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  empty: { textAlign: 'center', marginTop: 40, fontSize: 14 },
+  empty: { textAlign: 'center', marginTop: 40, fontSize: 14, paddingHorizontal: 24 },
+  progressRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bar: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
+  barFill: { height: 6, borderRadius: 3 },
+  progressText: { fontSize: 12, fontWeight: '700' },
+  chips: { flexDirection: 'row', gap: 8 },
+  chip: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5 },
+  chipText: { fontSize: 12, fontWeight: '700' },
 });
