@@ -84,6 +84,14 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="slokas"
+        options={{
+          title: 'Ślokas',
+          headerTitle: 'Most Quoted Ślokas',
+          tabBarIcon: ({ focused }) => <TabIcon emoji="🙏" label="Ślokas" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
         name="favorites"
         options={{
           title: 'Saved',

@@ -147,7 +147,7 @@ export function FloatingSearch() {
   // always-visible bar stays off those routes to avoid stacking two; it only
   // appears there as an overlay when opened from the header icon.
   const onVerse = pathname === '/verse';
-  const hideIdleBar = onVerse || pathname === '/downloads';
+  const hideIdleBar = onVerse || pathname === '/downloads' || pathname === '/sloka';
   const expanded = focused || query.length > 0;
   if (hideIdleBar && !expanded) return null;
 

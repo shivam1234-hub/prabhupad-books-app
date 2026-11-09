@@ -56,6 +56,10 @@ function RootNav() {
           options={{ headerTitle: 'Verse', headerBackTitle: '' }}
         />
         <Stack.Screen
+          name="sloka"
+          options={{ headerTitle: 'Śloka', headerBackTitle: '' }}
+        />
+        <Stack.Screen
           name="downloads"
           options={{ headerTitle: 'Download Manager', headerBackTitle: '' }}
         />
