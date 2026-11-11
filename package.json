@@ -1,6 +1,6 @@
 {
   "name": "prabhupad-books-app",
-  "version": "1.5.1",
+  "version": "1.10.0",
   "main": "index.ts",
   "dependencies": {
     "@expo/metro-runtime": "~56.0.15",

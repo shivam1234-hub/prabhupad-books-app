@@ -3,6 +3,68 @@ import { View, Text, StyleSheet, Pressable, Platform, LayoutChangeEvent, Interac
 import { Verse } from '@/types';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore, fontSizeMap } from '@/store/settingsStore';
+import { findCitations, Citation, LibraryRef } from '@/services/purport/citations';
+import { findPersonalities } from '@/services/personalities';
+import type { Personality } from '@/constants/personalities';
+
+/** A scripture reference in the purport that the library can open. */
+export type LinkedCitation = Citation & { ref: LibraryRef };
+/** Tap on a reference; `x`/`y` are window coordinates of the tap. */
+export type CitationPress = (c: LinkedCitation, at: { x: number; y: number }) => void;
+
+/** Tap on a personality's name ("Bhṛgu Muni"); window coordinates as above. */
+export type PersonalityPress = (p: Personality, at: { x: number; y: number }) => void;
+
+type Segment = { text: string; cite?: LinkedCitation; person?: Personality };
+
+/** `text` cut into plain runs and the references the library has. */
+function citationSegments(text: string, inBook?: string): Segment[] {
+  let cites: LinkedCitation[];
+  try {
+    cites = findCitations(text, inBook).filter((c): c is LinkedCitation => !!c.ref);
+  } catch {
+    return [{ text }];
+  }
+  if (!cites.length) return [{ text }];
+  const out: Segment[] = [];
+  let i = 0;
+  for (const c of cites) {
+    if (c.start < i) continue;
+    if (c.start > i) out.push({ text: text.slice(i, c.start) });
+    // "Bhagavad-gītā (2.13)": the match stops before ")" — underline it too.
+    let end = c.end;
+    const linked = text.slice(c.start, end);
+    if (text[end] === ')' && linked.split('(').length > linked.split(')').length) end++;
+    out.push({ text: text.slice(c.start, end), cite: c });
+    i = end;
+  }
+  if (i < text.length) out.push({ text: text.slice(i) });
+  return out;
+}
+
+/**
+ * Splits the plain runs of `segs` at the personalities named in them. Each
+ * personality is linked once, at its first mention: `seen` carries the ones
+ * already linked earlier on the page.
+ */
+function personalitySegments(segs: Segment[], seen: Set<string>): Segment[] {
+  const out: Segment[] = [];
+  for (const seg of segs) {
+    if (seg.cite) { out.push(seg); continue; }
+    let found: ReturnType<typeof findPersonalities>;
+    try { found = findPersonalities(seg.text); } catch { found = []; }
+    let i = 0;
+    for (const m of found) {
+      if (seen.has(m.person.id)) continue;
+      seen.add(m.person.id);
+      if (m.start > i) out.push({ text: seg.text.slice(i, m.start) });
+      out.push({ text: seg.text.slice(m.start, m.end), person: m.person });
+      i = m.end;
+    }
+    if (i < seg.text.length) out.push({ text: seg.text.slice(i) });
+  }
+  return out;
+}
 
 // Word-for-word synonyms come as "word – meaning; word – meaning; …".
 // Split into pairs so the Sanskrit word can be colored apart from its meaning.
@@ -181,13 +243,42 @@ const WORDS_PER_FRAME = 250;
  * One paragraph of a section. Kept as its own <Text> (and memoised) so that
  * arming it for word lookup re-renders and re-lays out only this paragraph.
  */
-const Paragraph = memo(function Paragraph({ text, style, sanskrit, onWord, armed, lookupKind }: {
+const Paragraph = memo(function Paragraph({
+  text, segments, style, sanskrit, onWord, armed, lookupKind, onCitation, onPerson, linkColor,
+}: {
   text: string; style: any; sanskrit: boolean; onWord?: WordLookup; armed: boolean;
   lookupKind: 'skt' | 'en';
+  /** `text` cut at its links (verse references, personalities); else plain. */
+  segments?: Segment[];
+  onCitation?: CitationPress; onPerson?: PersonalityPress; linkColor?: string;
 }) {
+  const segs = segments ?? [{ text }];
   return (
     <Text style={style} selectable={!onWord || IS_WEB} {...lookupMark(lookupKind)}>
-      <Words text={text} sanskrit={sanskrit} onWord={onWord} armed={armed} />
+      {segs.map((seg, i) => (seg.cite ? (
+        <Text
+          key={i}
+          style={[styles.citation, { color: linkColor, textDecorationColor: linkColor }]}
+          onPress={(e) => onCitation?.(seg.cite!, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
+          accessibilityRole="link"
+          suppressHighlighting={false}
+        >
+          {seg.text}
+        </Text>
+      ) : seg.person ? (
+        <Text
+          key={i}
+          style={[styles.personality, { textDecorationColor: linkColor }]}
+          onPress={(e) => onPerson?.(seg.person!, { x: e.nativeEvent.pageX, y: e.nativeEvent.pageY })}
+          accessibilityRole="link"
+          accessibilityHint="Shows who this is"
+          suppressHighlighting={false}
+        >
+          {seg.text}
+        </Text>
+      ) : (
+        <Words key={i} text={seg.text} sanskrit={sanskrit} onWord={onWord} armed={armed} />
+      )))}
     </Text>
   );
 });
@@ -220,11 +311,16 @@ export interface VerseContentSearchProps {
   onLookupReady?: () => void;
   /** Receives a function that measures match `index`'s y relative to a view. */
   onFindLocator?: (locate: FindLocator) => void;
+  /** Tap on a scripture reference in the purport ("Bg. 2.13"). */
+  onCitationPress?: CitationPress;
+  /** Tap on a less familiar personality's name in the translation or purport. */
+  onPersonalityPress?: PersonalityPress;
 }
 
 export function VerseContent({
   verse, query = '', activeMatch = 0, display,
   onMatchSectionsChange, onSectionLayout, onContainerLayout, onWordLookup, onLookupReady, onFindLocator,
+  onCitationPress, onPersonalityPress,
 }: { verse: Verse; display?: VerseDisplay } & VerseContentSearchProps) {
   const { colors, isDark } = useTheme();
   const settings = useSettingsStore(s => s.settings);
@@ -336,6 +432,22 @@ export function VerseContent({
     }
     return { byKey: Object.fromEntries(out.map(u => [u.key, u])), words };
   }, [sections]);
+  // Links in the translation and purport, per paragraph: verse references
+  // (purport) and personalities (first mention on the page, in reading order).
+  const linkSegs = useMemo(() => {
+    const out: Record<string, Segment[][]> = {};
+    const seen = new Set<string>();
+    for (const key of ['translation', 'purport']) {
+      const unit = units.byKey[key];
+      const cites = key === 'purport' && !!onCitationPress;
+      if (!unit || (!cites && !onPersonalityPress)) continue;
+      out[key] = unit.paras.map((p) => {
+        const segs = cites ? citationSegments(p, verse.bookSlug) : [{ text: p }];
+        return onPersonalityPress ? personalitySegments(segs, seen) : segs;
+      });
+    }
+    return out;
+  }, [units, verse.bookSlug, !!onCitationPress, !!onPersonalityPress]);
   const synonymPairs = useMemo(() => parseSynonyms(verse.synonyms ?? ''), [verse.synonyms]);
   const [armedUnits, setArmedUnits] = useState(0);
   const readyRef = useRef(onLookupReady);
@@ -398,7 +510,7 @@ export function VerseContent({
                 </Text>
               ))}
             </Text>
-          ) : !searching && onWordLookup && s.key !== 'devanagari' ? (
+          ) : !searching && s.key !== 'devanagari' && (onWordLookup || linkSegs[s.key]) ? (
             <View style={{ gap: StyleSheet.flatten(s.style).lineHeight }}>
               {units.byKey[s.key].paras.map((p, i) => (
                 <Paragraph
@@ -409,6 +521,10 @@ export function VerseContent({
                   onWord={onWordLookup}
                   armed={armedUnits > units.byKey[s.key].start + i}
                   lookupKind={s.key === 'transliteration' ? 'skt' : 'en'}
+                  segments={linkSegs[s.key]?.[i]}
+                  onCitation={onCitationPress}
+                  onPerson={onPersonalityPress}
+                  linkColor={colors.primary}
                 />
               ))}
             </View>
@@ -470,4 +586,8 @@ const styles = StyleSheet.create({
   synonyms: { lineHeight: 26 },
   translation: { lineHeight: 28, fontWeight: '500' },
   purport: { lineHeight: 28 },
+  citation: { fontWeight: '700', textDecorationLine: 'underline' },
+  // Quieter than a verse reference: the name keeps the text's colour and
+  // weight, with a dotted underline (solid on Android, which has no dotted).
+  personality: { textDecorationLine: 'underline', textDecorationStyle: 'dotted' },
 });

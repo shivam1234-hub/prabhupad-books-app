@@ -16,6 +16,10 @@ import { useFavoritesStore } from '@/store/favoritesStore';
 import { useSearchStore } from '@/store/searchStore';
 import { VerseContent, FindLocator } from '@/components/VerseContent';
 import { WordMeaningSheet } from '@/components/WordMeaningSheet';
+import { VersePreviewPopup, VersePreviewTarget } from '@/components/VersePreviewPopup';
+import { PersonalityPopup, PersonalityTarget } from '@/components/PersonalityPopup';
+import type { CitationPress, PersonalityPress } from '@/components/VerseContent';
+import type { LibraryRef } from '@/services/purport/citations';
 import { TagSheet } from '@/components/TagSheet';
 import { preloadDictionary, VerseRef } from '@/services/dictionary';
 import { getBook } from '@/constants/books';
@@ -113,6 +117,25 @@ export default function VerseScreen() {
   // Word long-pressed / double-clicked in the verse, shown in the meaning sheet.
   const [lookup, setLookup] = useState<{ word: string; sanskrit: boolean } | null>(null);
   const onWordLookup = useCallback((word: string, sanskrit: boolean) => setLookup({ word, sanskrit }), []);
+  // A scripture reference tapped in the purport, previewed in a small card.
+  const [preview, setPreview] = useState<VersePreviewTarget | null>(null);
+  const onCitationPress = useCallback<CitationPress>(
+    (c, at) => setPreview({ label: c.label, ref: c.ref, x: at.x, y: at.y }),
+    [],
+  );
+  // A less familiar personality named in the text, explained in a small card.
+  const [person, setPerson] = useState<PersonalityTarget | null>(null);
+  const onPersonalityPress = useCallback<PersonalityPress>(
+    (p, at) => setPerson({ person: p, x: at.x, y: at.y }),
+    [],
+  );
+  const openLibraryRef = useCallback((r: LibraryRef) => router.push({
+    pathname: '/verse',
+    params: {
+      book: r.bookSlug, chapter: String(r.chapter), verse: r.verse,
+      ...(r.canto != null ? { canto: String(r.canto) } : {}),
+    },
+  }), [router]);
   const [wpStatus, setWpStatus] = useState<WpStatus>('idle');
 
   // ─── In-page find state ───
@@ -394,6 +417,10 @@ export default function VerseScreen() {
               onLayout={(e) => { scrollViewH.current = e.nativeEvent.layout.height; }}
               onScroll={onScrollTrack}
               scrollEventThrottle={64}
+              // Android: the first tap on a selectable paragraph focuses it,
+              // and the ScrollView would then jump to show that paragraph
+              // (seen when tapping a verse reference in a long purport).
+              scrollsChildToFocus={false}
             >
               <View ref={contentRef} collapsable={false}>
               {myNote && (
@@ -418,6 +445,8 @@ export default function VerseScreen() {
                 onSectionLayout={() => { if (findActive) scrollToMatch(activeMatch); }}
                 onWordLookup={meanings === 'off' ? undefined : onWordLookup}
                 onLookupReady={onLookupReady}
+                onCitationPress={onCitationPress}
+                onPersonalityPress={onPersonalityPress}
               />
               </View>
             </ScrollView>
@@ -462,6 +491,18 @@ export default function VerseScreen() {
             ...(r.canto != null ? { canto: String(r.canto) } : {}),
           },
         })}
+      />
+
+      <VersePreviewPopup
+        target={preview}
+        onClose={() => setPreview(null)}
+        onOpenVerse={openLibraryRef}
+      />
+
+      <PersonalityPopup
+        target={person}
+        onClose={() => setPerson(null)}
+        onOpenVerse={openLibraryRef}
       />
 
       <TagSheet
