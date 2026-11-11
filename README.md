@@ -151,9 +151,11 @@ eas build --platform android
 
 ## Desktop App (Windows / macOS / Linux)
 
-The same app runs as a native desktop application via Electron. It is **not** a
-rewrite — the desktop build renders the exact same Expo web bundle (same screens,
-navigation, theming and settings), and adds the three things a browser can't do:
+The same app runs as a native desktop application via Electron, with a desktop
+layout modelled on vedabase.io (app bar with search, cover-grid library,
+centred verse reader with a contents sidebar, ← / → navigation, hover previews)
+built as `*.web.tsx` screens over the same stores, data and settings. Electron
+adds the three things a browser can't do:
 
 | Concern | Mobile | Desktop |
 |---|---|---|

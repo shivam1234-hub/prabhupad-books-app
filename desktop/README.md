@@ -6,10 +6,15 @@ build and run instructions — this file covers how it fits together.
 
 ## The idea
 
-There is no second UI. `npm run desktop:bundle` runs `expo export --platform web`,
-and the resulting bundle in `dist-desktop/` is what the Electron window renders.
-Every screen, route, store and style is the shared app code, so a change to
-`app/` or `src/` shows up on phone and desktop alike.
+`npm run desktop:bundle` runs `expo export --platform web`, and the resulting
+bundle in `dist-desktop/` is what the Electron window renders. Stores, data,
+search and settings are the shared app code. The *layout* is not: every route
+has a `*.web.tsx` twin (`app/_layout.web.tsx`, `app/verse.web.tsx`, …) with a
+vedabase.io-style desktop UI built from `src/desktop/` — an app bar with
+search, cover-grid library, a centred verse reader with a contents sidebar,
+side arrows and hover previews. The phone keeps its own `*.tsx` screens.
+The reading font (Noto Serif + Noto Serif Devanagari) ships in `public/fonts`,
+so the app looks right offline.
 
 What the main process supplies is only what a browser cannot:
 
@@ -54,3 +59,9 @@ desktop results match mobile.
   packaged.
 - `VEDABASE_BUNDLE_DIR` overrides which exported bundle is served — useful for
   testing a build without re-exporting.
+- `desktop/capture.js` is a screenshot harness for UI work, active only when
+  `VEDABASE_CAPTURE_PLAN` is set (see the file header). `VEDABASE_USER_DATA`
+  points a test run at a throwaway profile; `VEDABASE_INSECURE_TLS=1` accepts a
+  TLS-intercepting proxy for local testing. All three are off by default.
+- Set `ELECTRON_RUN_AS_NODE` unset if your shell exports it, or Electron starts
+  as plain Node.
