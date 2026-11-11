@@ -11,6 +11,14 @@ export interface VedabaseDesktopBridge {
   onSlokaDue(handler: () => void): void;
   storageInfo(): Promise<{ path: string; bytes: number; verses: number; books: number }>;
   revealStorage(): Promise<boolean>;
+  /** Native message box (Alert.alert on desktop); resolves to the clicked button index. */
+  dialog?(opts: {
+    title?: string; message?: string; buttons: string[]; defaultId?: number; cancelId?: number;
+  }): Promise<number>;
+  /** Open an http(s) URL in the system browser. */
+  openExternal?(url: string): Promise<boolean>;
+  /** The desktop app's version (package.json). */
+  appVersion?: string;
 }
 
 declare global {

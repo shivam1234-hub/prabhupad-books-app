@@ -31,4 +31,12 @@ contextBridge.exposeInMainWorld('vedabaseDesktop', {
   // Where the offline library lives + how big it is (Settings screen).
   storageInfo: () => ipcRenderer.invoke('vedabase:storage-info'),
   revealStorage: () => ipcRenderer.invoke('vedabase:reveal-storage'),
+
+  // Native message box — react-native-web's Alert.alert is a no-op, so the
+  // renderer's Alert shim (src/utils/webAlert.web.ts) routes here.
+  dialog: (opts) => ipcRenderer.invoke('vedabase:dialog', opts),
+
+  openExternal: (url) => ipcRenderer.invoke('vedabase:open-external', url),
+
+  appVersion: ipcRenderer.sendSync('vedabase:app-version'),
 });

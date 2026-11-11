@@ -8,7 +8,7 @@
 const path = require('path');
 const fs = require('fs');
 const {
-  app, BrowserWindow, protocol, net, ipcMain, shell, Menu, Notification,
+  app, BrowserWindow, protocol, net, ipcMain, shell, Menu, Notification, dialog, nativeTheme,
 } = require('electron');
 
 const db = require('./db');
@@ -38,6 +38,14 @@ protocol.registerSchemesAsPrivileged([
 // run would read two different offline libraries.
 app.setName('Vedabase');
 
+// Local testing only (both OFF unless the env var is set, never in a shipped
+// build's defaults): a separate profile directory, and accepting a
+// TLS-intercepting corporate proxy's certificates.
+if (process.env.VEDABASE_USER_DATA) app.setPath('userData', process.env.VEDABASE_USER_DATA);
+if (process.env.VEDABASE_INSECURE_TLS === '1') app.commandLine.appendSwitch('ignore-certificate-errors');
+// Screenshot mode (desktop/capture.js): render pages and save PNGs, then quit.
+const CAPTURE_PLAN = process.env.VEDABASE_CAPTURE_PLAN || null;
+
 let mainWindow = null;
 
 // --- Window bounds, remembered between launches -----------------------------
@@ -49,7 +57,7 @@ function loadWindowState() {
     const s = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
     if (typeof s.width === 'number' && typeof s.height === 'number') return s;
   } catch { /* first launch, or unreadable — fall through to defaults */ }
-  return { width: 1180, height: 840 };
+  return { width: 1360, height: 860 };
 }
 
 function saveWindowState() {
@@ -149,6 +157,28 @@ function registerIpc() {
     return { path: file, bytes, ...db.api.stats() };
   });
 
+  ipcMain.handle('vedabase:dialog', async (_e, opts = {}) => {
+    const buttons = Array.isArray(opts.buttons) && opts.buttons.length ? opts.buttons.map(String) : ['OK'];
+    const { response } = await dialog.showMessageBox(mainWindow, {
+      type: 'none',
+      title: 'Vedabase',
+      message: String(opts.title || ''),
+      detail: opts.message ? String(opts.message) : undefined,
+      buttons,
+      defaultId: Number.isInteger(opts.defaultId) ? opts.defaultId : 0,
+      cancelId: Number.isInteger(opts.cancelId) ? opts.cancelId : buttons.length - 1,
+      noLink: true,
+    });
+    return response;
+  });
+
+  ipcMain.handle('vedabase:open-external', (_e, url) => {
+    if (typeof url === 'string' && /^https?:\/\//.test(url)) { shell.openExternal(url); return true; }
+    return false;
+  });
+
+  ipcMain.on('vedabase:app-version', (e) => { e.returnValue = app.getVersion(); });
+
   ipcMain.handle('vedabase:reveal-storage', () => {
     shell.showItemInFolder(db.dbFile(app.getPath('userData')));
     return true;
@@ -176,10 +206,13 @@ function buildMenu() {
     {
       label: 'View',
       submenu: [
-        { role: 'reload' },
-        { role: 'forceReload' },
-        { role: 'toggleDevTools' },
-        { type: 'separator' },
+        // Reload / DevTools are developer tools — only in an unpackaged run.
+        ...(app.isPackaged ? [] : [
+          { role: 'reload' },
+          { role: 'forceReload' },
+          { role: 'toggleDevTools' },
+          { type: 'separator' },
+        ]),
         // Reading app — text size matters, so keep zoom prominent.
         { role: 'resetZoom', label: 'Actual Size' },
         { role: 'zoomIn', label: 'Zoom In' },
@@ -193,8 +226,37 @@ function buildMenu() {
       role: 'help',
       submenu: [
         {
+          label: 'Keyboard Shortcuts',
+          click: () => dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'Keyboard Shortcuts',
+            message: 'Keyboard shortcuts',
+            detail: [
+              'Ctrl+K  Search the library',
+              'Ctrl+F  Find in this page (verse pages)',
+              '← / →  Previous / next verse or chapter',
+              'Alt+← / Alt+→  Back / forward',
+              '[  Show / hide the contents sidebar',
+              'Esc  Close a popup',
+              'Ctrl + / Ctrl −  Zoom the whole window',
+            ].join('\n'),
+            buttons: ['OK'],
+          }),
+        },
+        { type: 'separator' },
+        {
           label: 'Vedabase.io',
           click: () => shell.openExternal('https://vedabase.io'),
+        },
+        {
+          label: 'About Vedabase',
+          click: () => dialog.showMessageBox(mainWindow, {
+            type: 'info',
+            title: 'About Vedabase',
+            message: 'Vedabase — Śrīla Prabhupāda\'s books',
+            detail: `Version ${app.getVersion()}\n\nContent © Bhaktivedanta Book Trust, from vedabase.io.`,
+            buttons: ['OK'],
+          }),
         },
       ],
     },
@@ -212,15 +274,14 @@ function createWindow() {
     height: state.height,
     x: state.x,
     y: state.y,
-    minWidth: 380,
-    minHeight: 560,
+    minWidth: 1000,
+    minHeight: 640,
     title: 'Vedabase',
-    backgroundColor: '#FF6B00',
+    // Matches the page background so the window never flashes orange/white.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#100D08' : '#F7F3EC',
     show: false,
     autoHideMenuBar: process.platform === 'win32',
-    icon: process.platform === 'linux'
-      ? path.join(__dirname, 'build', 'icon.png')
-      : undefined,
+    icon: process.platform === 'darwin' ? undefined : path.join(__dirname, 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -230,7 +291,7 @@ function createWindow() {
     },
   });
 
-  if (state.maximized) mainWindow.maximize();
+  if (state.maximized && !CAPTURE_PLAN) mainWindow.maximize();
   mainWindow.once('ready-to-show', () => mainWindow.show());
 
   for (const ev of ['resize', 'move', 'close']) {
@@ -256,6 +317,10 @@ function createWindow() {
   // the app on the not-found screen every launch.
   registerHistoryShortcuts(mainWindow);
 
+  if (CAPTURE_PLAN) {
+    require('./capture').run(mainWindow, { plan: CAPTURE_PLAN, base: DEV_URL || 'app://bundle', nativeTheme });
+    return;
+  }
   if (DEV_URL) mainWindow.loadURL(DEV_URL);
   else mainWindow.loadURL('app://bundle/');
 }
