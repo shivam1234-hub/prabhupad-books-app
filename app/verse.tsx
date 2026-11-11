@@ -17,7 +17,8 @@ import { useSearchStore } from '@/store/searchStore';
 import { VerseContent, FindLocator } from '@/components/VerseContent';
 import { WordMeaningSheet } from '@/components/WordMeaningSheet';
 import { VersePreviewPopup, VersePreviewTarget } from '@/components/VersePreviewPopup';
-import type { CitationPress } from '@/components/VerseContent';
+import { PersonalityPopup, PersonalityTarget } from '@/components/PersonalityPopup';
+import type { CitationPress, PersonalityPress } from '@/components/VerseContent';
 import type { LibraryRef } from '@/services/purport/citations';
 import { TagSheet } from '@/components/TagSheet';
 import { preloadDictionary, VerseRef } from '@/services/dictionary';
@@ -120,6 +121,12 @@ export default function VerseScreen() {
   const [preview, setPreview] = useState<VersePreviewTarget | null>(null);
   const onCitationPress = useCallback<CitationPress>(
     (c, at) => setPreview({ label: c.label, ref: c.ref, x: at.x, y: at.y }),
+    [],
+  );
+  // A less familiar personality named in the text, explained in a small card.
+  const [person, setPerson] = useState<PersonalityTarget | null>(null);
+  const onPersonalityPress = useCallback<PersonalityPress>(
+    (p, at) => setPerson({ person: p, x: at.x, y: at.y }),
     [],
   );
   const openLibraryRef = useCallback((r: LibraryRef) => router.push({
@@ -439,6 +446,7 @@ export default function VerseScreen() {
                 onWordLookup={meanings === 'off' ? undefined : onWordLookup}
                 onLookupReady={onLookupReady}
                 onCitationPress={onCitationPress}
+                onPersonalityPress={onPersonalityPress}
               />
               </View>
             </ScrollView>
@@ -488,6 +496,12 @@ export default function VerseScreen() {
       <VersePreviewPopup
         target={preview}
         onClose={() => setPreview(null)}
+        onOpenVerse={openLibraryRef}
+      />
+
+      <PersonalityPopup
+        target={person}
+        onClose={() => setPerson(null)}
         onOpenVerse={openLibraryRef}
       />
 
