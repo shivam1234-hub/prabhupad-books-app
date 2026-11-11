@@ -177,7 +177,12 @@ function registerIpc() {
     return false;
   });
 
-  ipcMain.on('vedabase:app-version', (e) => { e.returnValue = app.getVersion(); });
+  ipcMain.on('vedabase:app-version', (e) => {
+    // Unpackaged, app.getVersion() is Electron's own version; the app's is in package.json.
+    let v = app.getVersion();
+    if (!app.isPackaged) { try { v = require('../package.json').version; } catch { /* keep */ } }
+    e.returnValue = v;
+  });
 
   ipcMain.handle('vedabase:reveal-storage', () => {
     shell.showItemInFolder(db.dbFile(app.getPath('userData')));

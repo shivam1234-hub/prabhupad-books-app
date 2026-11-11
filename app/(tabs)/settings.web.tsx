@@ -30,7 +30,7 @@ function Row({ label, hint, children, last }: { label: string; hint?: string; ch
   const { colors } = useTheme();
   return (
     <View style={[s.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderLight }]}>
-      <View style={{ flex: 1, minWidth: 0 }}>
+      <View style={{ flex: 1, minWidth: 130 }}>
         <Text style={[s.label, { color: colors.text }]}>{label}</Text>
         {hint ? <Text style={[s.hint, { color: colors.textMuted }]}>{hint}</Text> : null}
       </View>

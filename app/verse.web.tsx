@@ -145,7 +145,10 @@ export default function VerseScreen() {
     const ci = chs.findIndex((c) => c.chapter === chapter && c.canto === canto);
     let prev; let next;
     if (i > 0) prev = { href: verseHref(book.slug, chapter, ids[i - 1], canto), label: `Text ${ids[i - 1]}` };
-    else if (ci > 0) {
+    else if (ci === 0 && book.frontMatter?.length) {
+      const fm = book.frontMatter[book.frontMatter.length - 1];
+      prev = { href: verseHref(book.slug, 1, fm.id), label: fm.title };
+    } else if (ci > 0) {
       const pc = chs[ci - 1];
       prev = { href: verseHref(book.slug, pc.chapter, String(pc.verseCount), pc.canto), label: `Chapter ${pc.chapter}, last text` };
     }

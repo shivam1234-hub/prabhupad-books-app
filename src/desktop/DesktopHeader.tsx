@@ -3,7 +3,7 @@
 // opens the full results page, then reader settings, theme, recent pages and
 // settings.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, StyleSheet, Pressable, TextInput, Image } from 'react-native';
+import { View, Text, StyleSheet, Pressable, TextInput, Image, useWindowDimensions } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -170,20 +170,22 @@ export function DesktopHeader() {
   const anchors = useRef<Record<string, any>>({});
   const close = () => setMenu(null);
   useEffect(() => { if (readerTick) setMenu('reader'); }, [readerTick]);
+  const { width } = useWindowDimensions();
+  const compact = width < 1240;
   const themeIcon = THEMES.find((th) => th.mode === themeMode)?.icon ?? '◐';
 
   return (
     <View style={[s.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <Pressable
         onPress={() => router.push('/library')}
-        style={[s.logo, web({ cursor: 'pointer' })]}
+        style={[s.logo, compact && { marginRight: 6 }, web({ cursor: 'pointer' })]}
         accessibilityRole="link"
         accessibilityLabel="Vedabase library home"
       >
         <Image source={require('../../assets/icon.png')} style={s.logoImg} />
         <View>
           <Text style={[s.logoText, { color: colors.text }]}>Vedabase</Text>
-          <Text style={[s.logoSub, { color: colors.textMuted }]}>Śrīla Prabhupāda's books</Text>
+          {!compact ? <Text style={[s.logoSub, { color: colors.textMuted }]}>Śrīla Prabhupāda's books</Text> : null}
         </View>
       </Pressable>
 

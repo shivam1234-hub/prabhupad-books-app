@@ -78,7 +78,7 @@ export function BookToc({ book, canto, chapter, verse, pageId }: {
 
   let rows = chapters;
   let clipped = false;
-  if (rows.length > WINDOW * 2) {
+  if (!book.hasCantos && rows.length > WINDOW * 2) {
     const i = Math.max(0, rows.findIndex(isCurrent));
     rows = rows.slice(Math.max(0, i - WINDOW), i + WINDOW);
     clipped = true;
