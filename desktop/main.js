@@ -7,9 +7,33 @@
 // to vedabase.io (desktop/net.js), and OS notifications.
 const path = require('path');
 const fs = require('fs');
+const { pathToFileURL } = require('url');
 const {
   app, BrowserWindow, protocol, net, ipcMain, shell, Menu, Notification, dialog, nativeTheme,
 } = require('electron');
+
+// --- Startup safety net -------------------------------------------------------
+// A failure during startup must never leave a windowless process behind: it
+// would hold the single-instance lock, so every later double-click on the icon
+// silently does nothing ("the app doesn't open"). Log to userData/startup.log
+// and show the error instead.
+function startupLog(...parts) {
+  try {
+    fs.appendFileSync(
+      path.join(app.getPath('userData'), 'startup.log'),
+      `[${new Date().toISOString()}] ${parts.map(String).join(' ')}\n`
+    );
+  } catch { /* logging is best-effort */ }
+}
+function fatal(where, err) {
+  startupLog('FATAL', where, err && err.stack ? err.stack : err);
+  try {
+    dialog.showErrorBox('Vedabase could not start',
+      `${where}: ${err && err.message ? err.message : err}\n\n` +
+      `Details were saved to:\n${path.join(app.getPath('userData'), 'startup.log')}`);
+  } catch { /* no UI available */ }
+}
+process.on('uncaughtException', (err) => fatal('Unexpected error', err));
 
 const db = require('./db');
 const { fetchText } = require('./net');
@@ -91,7 +115,9 @@ function registerAppProtocol() {
       ? target
       : path.join(root, 'index.html');
 
-    return net.fetch(`file://${file.split(path.sep).join('/')}`);
+    // pathToFileURL gives file:///C:/... on Windows; hand-built "file://C:/..."
+    // puts the drive letter in the host position.
+    return net.fetch(pathToFileURL(file).href);
   });
 }
 
@@ -297,7 +323,19 @@ function createWindow() {
   });
 
   if (state.maximized && !CAPTURE_PLAN) mainWindow.maximize();
-  mainWindow.once('ready-to-show', () => mainWindow.show());
+  // Show on first paint, but never stay invisible: if the page fails to load
+  // (or ready-to-show never fires) the window still appears after 4 s.
+  const reveal = () => { if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) mainWindow.show(); };
+  mainWindow.once('ready-to-show', reveal);
+  setTimeout(reveal, 4000);
+  mainWindow.webContents.on('did-fail-load', (_e, code, desc, url) => {
+    startupLog('did-fail-load', code, desc, url);
+    reveal();
+  });
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    startupLog('render-process-gone', JSON.stringify(details));
+    reveal();
+  });
 
   for (const ev of ['resize', 'move', 'close']) {
     mainWindow.on(ev, saveWindowState);
@@ -381,7 +419,10 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   app.whenReady().then(() => {
-    db.open(app.getPath('userData'));
+    startupLog('start', app.getVersion(), process.platform, process.arch, app.getPath('exe'));
+    // The offline library failing to open must not stop the window: reading
+    // online still works, and the error is shown and logged.
+    try { db.open(app.getPath('userData')); } catch (err) { fatal('Opening the offline library', err); }
     registerAppProtocol();
     registerIpc();
     buildMenu();
@@ -390,7 +431,7 @@ if (!app.requestSingleInstanceLock()) {
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
-  });
+  }).catch((err) => { fatal('Starting up', err); app.exit(1); });
 
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit();
