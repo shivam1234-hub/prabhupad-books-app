@@ -14,11 +14,74 @@ import { SANS, SERIF, tints, web, alpha, PAGE_W } from './theme';
 
 type PState = { pressed: boolean; hovered?: boolean; focused?: boolean };
 
-/** Sets the native tooltip (title attribute) on the rendered DOM node. */
-export function useTooltip(tip?: string) {
-  return (el: any) => {
-    if (el && tip !== undefined && typeof el === 'object' && 'title' in el) el.title = tip;
-  };
+/**
+ * Hover tooltip for a control: returns props that tag the element with
+ * `data-tip`, which <TooltipLayer/> (mounted once in the desktop layout) shows
+ * as a styled bubble. A DOM `title` set through a ref is unreliable here —
+ * react-native-web refs aren't guaranteed to be the DOM node, and the native
+ * bubble can't be themed — so the tooltip is drawn in the page instead.
+ */
+export function tipProps(tip?: string): { dataSet?: Record<string, string> } {
+  return tip ? { dataSet: { tip } } : {};
+}
+
+/** Shows `data-tip` tooltips after a short hover; hides on leave, click, scroll or key. */
+export function TooltipLayer() {
+  const { colors, isDark } = useTheme();
+  const [tip, setTip] = useState<{ text: string; x: number; y: number; above: boolean } | null>(null);
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let current: HTMLElement | null = null;
+    const clear = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    const hide = () => { clear(); current = null; setTip(null); };
+    const onOver = (e: MouseEvent) => {
+      const el = (e.target as HTMLElement | null)?.closest?.('[data-tip]') as HTMLElement | null;
+      if (el === current) return;
+      hide();
+      if (!el) return;
+      current = el;
+      timer = setTimeout(() => {
+        if (!current || !document.body.contains(current)) return;
+        const r = current.getBoundingClientRect();
+        const above = r.bottom + 40 > window.innerHeight;
+        setTip({ text: current.dataset.tip ?? '', x: r.left + r.width / 2, y: above ? r.top - 8 : r.bottom + 8, above });
+      }, 450);
+    };
+    const onOut = (e: MouseEvent) => {
+      if (!current) return;
+      const to = e.relatedTarget as Node | null;
+      if (to && current.contains(to)) return;
+      hide();
+    };
+    document.addEventListener('mouseover', onOver, true);
+    document.addEventListener('mouseout', onOut, true);
+    for (const ev of ['mousedown', 'wheel', 'keydown', 'blur']) window.addEventListener(ev, hide, true);
+    return () => {
+      clear();
+      document.removeEventListener('mouseover', onOver, true);
+      document.removeEventListener('mouseout', onOut, true);
+      for (const ev of ['mousedown', 'wheel', 'keydown', 'blur']) window.removeEventListener(ev, hide, true);
+    };
+  }, []);
+  if (!tip || !tip.text || typeof document === 'undefined') return null;
+  return createPortal(
+    <View
+      pointerEvents="none"
+      dataSet={{ vbTooltip: '1' }}
+      style={[
+        styles.tooltip,
+        { backgroundColor: isDark ? '#EEE4D0' : '#2A1F12' },
+        web({
+          position: 'fixed', left: tip.x, top: tip.y, zIndex: 2000,
+          transform: tip.above ? 'translate(-50%, -100%)' : 'translateX(-50%)',
+          boxShadow: '0 4px 14px rgba(0,0,0,0.25)', maxWidth: 320, pointerEvents: 'none',
+        }),
+      ] as any}
+    >
+      <Text style={[styles.tooltipText, { color: isDark ? '#100D08' : '#FDFAF4' }]}>{tip.text}</Text>
+    </View>,
+    document.body,
+  );
 }
 
 // ─── Buttons ──────────────────────────────────────────────────────────────
@@ -43,7 +106,7 @@ export function Btn({
   const fs = size === 'sm' ? 12.5 : size === 'lg' ? 15 : 13.5;
   return (
     <Pressable
-      ref={useTooltip(tip)}
+      {...tipProps(tip)}
       onPress={onPress}
       disabled={disabled || busy}
       accessibilityRole="button"
@@ -94,7 +157,7 @@ export function IconBtn({
   const t = tints(colors);
   return (
     <Pressable
-      ref={useTooltip(tip)}
+      {...tipProps(tip)}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
@@ -135,7 +198,7 @@ export function HoverRow({
   const [hovered, setHovered] = useState(false);
   return (
     <Pressable
-      ref={useTooltip(tip)}
+      {...tipProps(tip)}
       onPress={onPress}
       disabled={disabled}
       accessibilityRole={accessibilityRole}
@@ -145,7 +208,7 @@ export function HoverRow({
         typeof style === 'function' ? style(hovered) : style,
         hovered && !disabled ? { backgroundColor: hoverBg ?? t.hover } : null,
         { opacity: s.pressed ? 0.85 : 1 },
-        web({ cursor: onPress && !disabled ? 'pointer' : 'default', transition: 'background-color 120ms, box-shadow 160ms, transform 160ms' }),
+        web({ cursor: onPress && !disabled ? 'pointer' : 'default', userSelect: onPress ? 'none' : 'auto', transition: 'background-color 120ms, box-shadow 160ms, transform 160ms' }),
       ]}
     >
       {typeof children === 'function' ? children(hovered) : children}
@@ -498,5 +561,7 @@ const styles = StyleSheet.create({
   emptyIcon: { fontSize: 44, marginBottom: 6 },
   emptyTitle: { fontFamily: SANS, fontSize: 18, fontWeight: '700' },
   emptyBody: { fontFamily: SANS, fontSize: 14, lineHeight: 21, textAlign: 'center', maxWidth: 440 },
+  tooltip: { borderRadius: 6, paddingHorizontal: 9, paddingVertical: 5 },
+  tooltipText: { fontFamily: SANS, fontSize: 12, fontWeight: '500', lineHeight: 16 },
   kbd: { fontFamily: SANS, fontSize: 11, fontWeight: '600', borderWidth: 1, borderRadius: 5, paddingHorizontal: 5, paddingVertical: 1, overflow: 'hidden' },
 });

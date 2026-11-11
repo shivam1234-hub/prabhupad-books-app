@@ -217,6 +217,7 @@ export function ReaderVerse({
       return (
         <Text
           key={i}
+          dataSet={{ vbPerson: '1' }}
           accessibilityRole="link"
           accessibilityHint="Shows who this is"
           onPress={(e: any) => onPersonHover?.(p, anchorOf(e))}

@@ -71,8 +71,8 @@ function SearchBox() {
 
   const choose = (sg: Suggestion | undefined) => {
     if (!sg) return;
-    input.current?.blur();
     setFocused(false);
+    input.current?.blur();
     if (sg.kind === 'ref') { setQ(''); router.push(verseHref(sg.ref)); }
     else if (sg.kind === 'book') { setQ(''); router.push({ pathname: '/book/[slug]', params: { slug: sg.book.slug } }); }
     else router.push({ pathname: '/search', params: { q: sg.q } });
@@ -103,7 +103,7 @@ function SearchBox() {
           value={q}
           onChangeText={setQ}
           onFocus={() => setFocused(true)}
-          onBlur={() => setTimeout(() => setFocused(false), 150)}
+          onBlur={() => setFocused(false)}
           onKeyPress={onKey}
           onSubmitEditing={() => choose(suggestions[active] ?? (q.trim() ? { kind: 'search', q: q.trim() } : undefined))}
           placeholder='Search — “bg 2.13”, “sb 1.2.6”, “yoga”…'
@@ -122,6 +122,10 @@ function SearchBox() {
       {open && suggestions.length > 0 ? (
         <View
           dataSet={{ vbPop: '1' }}
+          // Keep the input focused while a suggestion is clicked: otherwise
+          // mousedown blurs it, the list unmounts before mouseup, and the
+          // click lands on nothing (a press held longer than a tap was lost).
+          onMouseDown={(e: any) => e.preventDefault()}
           style={[s.suggest, { backgroundColor: colors.surface, borderColor: colors.border }, web({ boxShadow: t.shadowLg })]}
         >
           {suggestions.map((sg, i) => {
@@ -158,6 +162,24 @@ function SearchBox() {
   );
 }
 
+/** Whether the window's history can move back / forward (Chromium Navigation API). */
+function useHistoryState() {
+  const pathname = usePathname();
+  const [st, setSt] = useState({ back: false, forward: false });
+  useEffect(() => {
+    const nav = (window as any).navigation;
+    const read = () => setSt({
+      back: nav ? !!nav.canGoBack : window.history.length > 1,
+      forward: nav ? !!nav.canGoForward : false,
+    });
+    read();
+    nav?.addEventListener?.('currententrychange', read);
+    window.addEventListener('popstate', read);
+    return () => { nav?.removeEventListener?.('currententrychange', read); window.removeEventListener('popstate', read); };
+  }, [pathname]);
+  return st;
+}
+
 export function DesktopHeader() {
   const { colors } = useTheme();
   const t = tints(colors);
@@ -172,10 +194,15 @@ export function DesktopHeader() {
   useEffect(() => { if (readerTick) setMenu('reader'); }, [readerTick]);
   const { width } = useWindowDimensions();
   const compact = width < 1240;
+  const hist = useHistoryState();
   const themeIcon = THEMES.find((th) => th.mode === themeMode)?.icon ?? '◐';
 
   return (
     <View style={[s.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+      <View style={s.histBtns}>
+        <IconBtn icon="←" tip="Back (Alt+←)" size={32} disabled={!hist.back} onPress={() => historyGo(-1)} />
+        <IconBtn icon="→" tip="Forward (Alt+→)" size={32} disabled={!hist.forward} onPress={() => historyGo(1)} />
+      </View>
       <Pressable
         onPress={() => router.push('/library')}
         style={[s.logo, compact && { marginRight: 6 }, web({ cursor: 'pointer' })]}
@@ -241,7 +268,23 @@ export function DesktopHeader() {
   );
 }
 
+/**
+ * Back / forward through the window's history. One entry point for the header
+ * buttons, Alt+← / →, Backspace, mouse side buttons and the main process's
+ * Windows app-command, with a short guard so one physical press that arrives
+ * by two routes (mouseup button 3 and app-command) only moves once.
+ */
+let lastNav = 0;
+export function historyGo(delta: -1 | 1) {
+  const now = Date.now();
+  if (now - lastNav < 350) return;
+  lastNav = now;
+  window.history.go(delta);
+}
+if (typeof window !== 'undefined') (window as any).__vbNav = historyGo;
+
 const s = StyleSheet.create({
+  histBtns: { flexDirection: 'row', alignItems: 'center', gap: 0, marginRight: 8 },
   bar: {
     height: HEADER_H, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 8,
     borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 50,

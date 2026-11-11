@@ -15,6 +15,7 @@ import { useTrackedRoute } from '@/hooks/useTrackedRoute';
 import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, SectionKey } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Segmented, Chip, Empty } from '@/desktop/ui';
+import { tipProps } from '@/desktop/ui';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { bookCrumbs, flatChapters, chapterHref, verseHref, shortRef } from '@/desktop/bookNav';
 import { SANS, SERIF, READING_W, tints, web, alpha } from '@/desktop/theme';
@@ -213,7 +214,7 @@ function SideNav({ dir, onPress, label }: { dir: -1 | 1; onPress?: () => void; l
       {onPress ? (
         <Pressable
           onPress={onPress}
-          ref={(el: any) => { if (el && label) el.title = `${label}  (${dir < 0 ? '←' : '→'})`; }}
+          {...tipProps(label ? `${label}  (${dir < 0 ? '←' : '→'})` : undefined)}
           style={(st: PState) => [s.side, { backgroundColor: st.hovered ? t.hoverStrong : 'transparent' }, web({ cursor: 'pointer', transition: 'background-color 140ms' })]}
         >
           {(st: PState) => <Text style={[s.sideGlyph, { color: st.hovered ? colors.primary : alpha(colors.textMuted, 0.9) }]}>{dir < 0 ? '‹' : '›'}</Text>}

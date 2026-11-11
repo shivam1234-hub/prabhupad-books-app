@@ -23,6 +23,7 @@ import { useTrackedRoute } from '@/hooks/useTrackedRoute';
 import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, LinkedCitation, Anchor } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Empty } from '@/desktop/ui';
+import { tipProps } from '@/desktop/ui';
 import { TagDialog, NoteDialog } from '@/desktop/VerseDialogs';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { hoverIntent } from '@/desktop/hoverIntent';
@@ -44,7 +45,7 @@ function SideArrow({ dir, onPress, label }: { dir: -1 | 1; onPress?: () => void;
         onPress={onPress}
         accessibilityRole="link"
         accessibilityLabel={label}
-        ref={(el: any) => { if (el && label) el.title = `${label}  (${dir < 0 ? '←' : '→'})`; }}
+        {...tipProps(label ? `${label}  (${dir < 0 ? '←' : '→'})` : undefined)}
         style={(st: PState) => [
           s.side,
           { backgroundColor: st.hovered ? t.hoverStrong : 'transparent' },

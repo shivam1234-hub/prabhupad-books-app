@@ -15,7 +15,8 @@ import { resumeInterruptedDownloads, registerDownloadBackgroundTask } from '@/se
 import { useTheme } from '@/hooks/useTheme';
 import { FeatureTour } from '@/components/FeatureTour';
 import { installWebAlert } from '@/utils/webAlert';
-import { DesktopHeader } from '@/desktop/DesktopHeader';
+import { DesktopHeader, historyGo } from '@/desktop/DesktopHeader';
+import { TooltipLayer } from '@/desktop/ui';
 import { applyDesktopCss } from '@/desktop/globalCss';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { SANS } from '@/desktop/theme';
@@ -44,10 +45,28 @@ function useGlobalShortcuts() {
       }
       if (typingInField() || mod || e.altKey) return;
       if (e.key === '[' && (pathname === '/verse' || pathname === '/chapter')) { e.preventDefault(); toggleToc(); return; }
-      if (e.key === 'Backspace' && router.canGoBack()) { e.preventDefault(); router.back(); }
+      if (e.key === 'Backspace') { e.preventDefault(); historyGo(-1); }
+    };
+    // Mouse side buttons (X1 = back, X2 = forward). Windows also reports them as
+    // an app-command to the main process; historyGo() ignores the duplicate.
+    const onMouseUp = (e: MouseEvent) => {
+      if (e.button === 3) { e.preventDefault(); historyGo(-1); }
+      else if (e.button === 4) { e.preventDefault(); historyGo(1); }
+    };
+    // Alt+← / Alt+→ (main also forwards these; same guard applies).
+    const onAltKey = (e: KeyboardEvent) => {
+      if (!e.altKey || e.ctrlKey || e.metaKey) return;
+      if (e.key === 'ArrowLeft') { e.preventDefault(); historyGo(-1); }
+      else if (e.key === 'ArrowRight') { e.preventDefault(); historyGo(1); }
     };
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    window.addEventListener('keydown', onAltKey);
+    window.addEventListener('mouseup', onMouseUp);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keydown', onAltKey);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
   }, [pathname, router, focusSearch, toggleToc]);
 }
 
@@ -62,6 +81,7 @@ function Shell() {
         <Slot />
       </View>
       <FeatureTour />
+      <TooltipLayer />
     </View>
   );
 }

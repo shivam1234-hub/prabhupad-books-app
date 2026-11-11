@@ -336,7 +336,7 @@ function createWindow() {
 // button does.
 function navigateHistory(win, delta) {
   win.webContents
-    .executeJavaScript(`window.history.go(${delta})`)
+    .executeJavaScript(`window.__vbNav ? window.__vbNav(${delta}) : window.history.go(${delta})`)
     .catch(() => { /* nothing to go back to */ });
 }
 

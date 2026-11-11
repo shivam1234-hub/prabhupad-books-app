@@ -24,9 +24,10 @@ export function isProseBook(book: BookMeta): boolean {
   return (isFlatBook(book.slug) && (book.chapters?.length ?? 0) > 1) || isChapterPageBook(book.slug) || isVanisourceBook(book.slug);
 }
 
-const verse = (book: string, chapter: number | string, v: string, canto?: number): Href => ({
+const verse = (book: string, chapter: number | string, v: string, canto?: number | null): Href => ({
   pathname: '/verse',
-  params: { book, chapter: String(chapter), verse: v, canto: canto !== undefined ? String(canto) : '' },
+  // canto may arrive as null from SQLite rows (saved verses) — never "null".
+  params: { book, chapter: String(chapter), verse: v, canto: canto != null ? String(canto) : '' },
 });
 
 /** Where opening a chapter from the contents goes — same rules as the phone's book screen. */
@@ -40,7 +41,7 @@ export function chapterHref(book: BookMeta, ch: FlatChapter): Href {
   };
 }
 
-export function verseHref(book: string, chapter: number, v: string, canto?: number): Href {
+export function verseHref(book: string, chapter: number, v: string, canto?: number | null): Href {
   return verse(book, chapter, v, canto);
 }
 

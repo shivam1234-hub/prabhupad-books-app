@@ -91,10 +91,17 @@ export default function SearchScreen() {
     return () => clearTimeout(timer);
   }, [q, bookFilter]);
 
-  // Keep the URL in step so Back returns to the same results.
+  // Keep the URL in step so Back returns to the same results. Written straight
+  // to window.history (not router.setParams): a debounced setParams could fire
+  // while a click on a result was already navigating and land on the new route.
   useEffect(() => {
-    const h = setTimeout(() => router.setParams({ q: q.trim() || undefined, book: bookFilter }), 500);
-    return () => clearTimeout(h);
+    const qs = new URLSearchParams();
+    if (q.trim()) qs.set('q', q.trim());
+    if (bookFilter) qs.set('book', bookFilter);
+    const url = `/search${qs.toString() ? `?${qs}` : ''}`;
+    if (location.pathname === '/search' && location.pathname + location.search !== url) {
+      window.history.replaceState(window.history.state, '', url);
+    }
   }, [q, bookFilter]);
 
   const terms = useMemo(() => queryTerms(searched), [searched]);
