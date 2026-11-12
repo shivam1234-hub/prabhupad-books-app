@@ -22,7 +22,7 @@ import { useTrackedRoute } from '@/hooks/useTrackedRoute';
 import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, LinkedCitation, Anchor } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Empty } from '@/desktop/ui';
-import { FocusBar, FullScreenBtn, WidthBtn, readingWidth } from '@/desktop/FocusBar';
+import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
 import { Presentation, PresentControls } from '@/desktop/Presentation';
 import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
 import { TagDialog, NoteDialog } from '@/desktop/VerseDialogs';
@@ -31,7 +31,7 @@ import { hoverIntent } from '@/desktop/hoverIntent';
 import {
   bookCrumbs, flatChapters, chapterHref, verseHref, useVerseIds, idContains, shortRef, chapterMeta, isProseBook,
 } from '@/desktop/bookNav';
-import { SANS, SERIF, READING_W, tints, web } from '@/desktop/theme';
+import { SANS, SERIF, READING_W_WIDE, tints, web } from '@/desktop/theme';
 
 type PState = { pressed: boolean; hovered?: boolean };
 const libHref = (r: LibraryRef): Href => verseHref(r.bookSlug, r.chapter, r.verse, r.canto ?? undefined);
@@ -46,7 +46,6 @@ export default function VerseScreen() {
   const toggleToc = useDesktopUi((st) => st.toggleToc);
   const focus = useDesktopUi((st) => st.focusMode);
   const presentMode = useDesktopUi((st) => st.presentMode);
-  const wide = useDesktopUi((st) => st.wideText);
   useEffect(() => { if (focus) closeFind(); }, [focus]);
   // Entering presentation: let the audience see only the text after a moment.
   useEffect(() => {
@@ -244,7 +243,6 @@ export default function VerseScreen() {
           <Btn size="sm" kind={fav ? 'secondary' : 'ghost'} icon={fav ? '★' : '☆'} label={fav ? 'Saved' : 'Save'} onPress={handleSave} tip={fav ? 'Edit tags or remove from Saved' : 'Save this verse'} />
           <Btn size="sm" kind={myNote ? 'secondary' : 'ghost'} icon="✎" label={myNote ? 'Note ●' : 'Note'} onPress={() => setShowNote(true)} tip="Write a personal note" />
           <Btn size="sm" kind={findOpen ? 'secondary' : 'ghost'} icon="⌕" label="Find" onPress={() => { setFindOpen((o) => !o); setTimeout(() => findInput.current?.focus(), 0); }} tip="Find in this page (Ctrl+F)" />
-          <WidthBtn />
           <FullScreenBtn />
         </View>
         )}
@@ -280,7 +278,7 @@ export default function VerseScreen() {
         <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }} {...({ onClick: bar.onTap } as any)}>
           <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={(e) => { onScroll(e); bar.onScrollY(e.nativeEvent.contentOffset.y); }} scrollEventThrottle={32}>
             <BarSpacer bar={bar} />
-            <View style={[s.column, { maxWidth: readingWidth(wide, READING_W) }, wide && s.columnWide]} dataSet={{ vbPage: '1' }}>
+            <View style={s.column} dataSet={{ vbPage: '1' }}>
               {loading ? (
                 <View style={s.center}><ActivityIndicator size="large" color={colors.primary} /><Text style={[s.muted, { color: colors.textMuted }]}>Loading…</Text></View>
               ) : error || !verse ? (
@@ -346,8 +344,8 @@ const s = StyleSheet.create({
   findInput: { flex: 1, fontFamily: SANS, fontSize: 14, height: 34 },
   findCount: { fontFamily: SANS, fontSize: 12.5, fontWeight: '600', minWidth: 48, textAlign: 'right' },
   scroll: { paddingTop: 36, paddingBottom: 80, alignItems: 'center' },
-  column: { width: '100%', maxWidth: READING_W, gap: 22 },
-  columnWide: { paddingHorizontal: 48 },
+  // Text uses the window's full width (the user found the book column too narrow).
+  column: { width: '100%', maxWidth: READING_W_WIDE, paddingHorizontal: 48, gap: 22 },
   center: { alignItems: 'center', paddingVertical: 100, gap: 14 },
   muted: { fontFamily: SANS, fontSize: 14 },
   title: { fontFamily: SERIF, fontSize: 30, fontWeight: '700', textAlign: 'center', letterSpacing: 0.2 },

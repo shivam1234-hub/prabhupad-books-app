@@ -16,10 +16,10 @@ import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, SectionKey } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Segmented, Chip, Empty } from '@/desktop/ui';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
-import { FocusBar, FullScreenBtn, WidthBtn, readingWidth } from '@/desktop/FocusBar';
+import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
 import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
 import { bookCrumbs, flatChapters, chapterHref, verseHref, shortRef } from '@/desktop/bookNav';
-import { SANS, SERIF, READING_W, tints, web } from '@/desktop/theme';
+import { SANS, SERIF, READING_W_WIDE, tints, web } from '@/desktop/theme';
 
 type PState = { pressed: boolean; hovered?: boolean };
 
@@ -69,7 +69,6 @@ export default function ChapterScreen() {
   const tocOpen = useDesktopUi((st) => st.tocOpen);
   const toggleToc = useDesktopUi((st) => st.toggleToc);
   const focus = useDesktopUi((st) => st.focusMode);
-  const wide = useDesktopUi((st) => st.wideText);
 
   const bookSlug = params.book ?? '';
   const chapter = parseInt(params.chapter ?? '1', 10) || 1;
@@ -156,7 +155,6 @@ export default function ChapterScreen() {
             onChange={setMode}
             options={[{ key: 'list', label: '☰  Verses' }, { key: 'read', label: '▤  Read continuously' }]}
           />
-          <WidthBtn />
           <FullScreenBtn onBefore={() => setMode('read')} />
         </View>
         )}
@@ -165,7 +163,7 @@ export default function ChapterScreen() {
         <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }} {...({ onClick: bar.onTap } as any)}>
           <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={(e) => { onScroll(e); bar.onScrollY(e.nativeEvent.contentOffset.y); }} scrollEventThrottle={32}>
             <BarSpacer bar={bar} />
-            <View style={[s.column, { maxWidth: readingWidth(wide, READING_W + 40) }, wide && s.columnWide]} dataSet={{ vbPage: '1' }}>
+            <View style={s.column} dataSet={{ vbPage: '1' }}>
               <Text style={[s.eyebrow, { color: colors.primary }]}>{book.title.toUpperCase()} · {reference.toUpperCase()}</Text>
               <Text style={[s.title, { color: colors.text }]}>{chapterName ?? reference}</Text>
 
@@ -229,8 +227,7 @@ const s = StyleSheet.create({
   row: { flex: 1, flexDirection: 'row', minHeight: 0 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, height: 52, borderBottomWidth: StyleSheet.hairlineWidth },
   scroll: { paddingTop: 36, paddingBottom: 80, alignItems: 'center' },
-  column: { width: '100%', maxWidth: READING_W + 40 },
-  columnWide: { paddingHorizontal: 48 },
+  column: { width: '100%', maxWidth: READING_W_WIDE, paddingHorizontal: 48 },
   eyebrow: { fontFamily: SANS, fontSize: 11.5, fontWeight: '700', letterSpacing: 1.4, textAlign: 'center' },
   title: { fontFamily: SERIF, fontSize: 30, fontWeight: '700', textAlign: 'center', marginTop: 10, marginBottom: 18, lineHeight: 40 },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 8 },

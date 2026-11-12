@@ -11,7 +11,7 @@ bundle in `dist-desktop/` is what the Electron window renders. Stores, data,
 search and settings are the shared app code. The *layout* is not: every route
 has a `*.web.tsx` twin (`app/_layout.web.tsx`, `app/verse.web.tsx`, …) with a
 vedabase.io-style desktop UI built from `src/desktop/` — an app bar with
-search, cover-grid library, a verse reader with a contents sidebar (full width or a narrow column),
+search, cover-grid library, a full-width verse reader with a contents sidebar,
 ← / → keys, hover previews and a full-screen presentation view (only the śloka or
 only the translation, fitted to the screen). The phone keeps its own `*.tsx` screens.
 The reading font (Noto Serif + Noto Serif Devanagari) ships in `public/fonts`,

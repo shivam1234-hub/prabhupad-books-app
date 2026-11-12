@@ -271,7 +271,6 @@ function buildMenu() {
               'Esc  Close a popup',
               'F  Full-screen reading (verse, chapter, Ślokas pages)',
               '1 / 2 / 3  In full screen: full page / only the śloka / only the translation',
-              'W  Text across the full width / narrow column',
               'Ctrl + / Ctrl − / Ctrl 0  Zoom (the śloka or translation when presenting, else the window)',
             ].join('\n'),
             buttons: ['OK'],

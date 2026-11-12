@@ -13,6 +13,8 @@ export const SANS =
 
 export const HEADER_H = 60;
 export const READING_W = 740;
+/** Verse / chapter reading column: the full window, capped for very wide screens. */
+export const READING_W_WIDE = 1600;
 export const PAGE_W = 1180;
 export const SIDEBAR_W = 300;
 

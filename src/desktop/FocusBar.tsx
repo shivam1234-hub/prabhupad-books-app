@@ -20,7 +20,6 @@ export function FocusBar({ label, children, searchWidth = 520 }: { label?: strin
       <SearchBox width={searchWidth} />
       <View style={s.right}>
         {children}
-        <WidthBtn />
         <Btn size="sm" kind="ghost" icon="✕" label="Exit full screen" onPress={() => setFocusMode(false)} tip="Back to the normal view  (Esc or F)" />
       </View>
     </View>
@@ -31,24 +30,6 @@ export function FullScreenBtn({ onBefore }: { onBefore?: () => void }) {
   const setFocusMode = useDesktopUi((st) => st.setFocusMode);
   return <IconBtn icon="⛶" tip="Full-screen reading — only the text, Next and search  (F)" onPress={() => { onBefore?.(); setFocusMode(true); }} size={32} />;
 }
-
-/** Reading text across the whole window, or in a narrow book column (W). */
-export function WidthBtn() {
-  const wide = useDesktopUi((st) => st.wideText);
-  const toggle = useDesktopUi((st) => st.toggleWideText);
-  return (
-    <IconBtn
-      icon="↔"
-      active={wide}
-      tip={wide ? 'Narrow text column  (W)' : 'Text across the full width  (W)'}
-      onPress={toggle}
-      size={32}
-    />
-  );
-}
-
-/** Max width of the reading column. */
-export const readingWidth = (wide: boolean, base: number) => (wide ? 1600 : base);
 
 const s = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, height: 60, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 50 },

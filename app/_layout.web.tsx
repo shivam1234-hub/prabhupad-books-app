@@ -80,9 +80,8 @@ function useFocusMode() {
   const setFocusMode = useDesktopUi((s) => s.setFocusMode);
   const allowed = FOCUS_PATHS.includes(pathname);
   useEffect(() => { if (focusMode && !allowed) setFocusMode(false); }, [allowed, focusMode, setFocusMode]);
-  // F toggles full-screen reading on the pages that have it; W switches the
-  // text between full width and a narrow column; in full-screen verse reading
-  // 1 / 2 / 3 show the full page / only the śloka / only the translation.
+  // F toggles full-screen reading on the pages that have it; in full-screen
+  // verse reading 1 / 2 / 3 show the full page / only the śloka / only the translation.
   useEffect(() => {
     if (!allowed) return;
     const onKey = (e: KeyboardEvent) => {
@@ -91,7 +90,6 @@ function useFocusMode() {
       const k = e.key.toLowerCase();
       const ui = useDesktopUi.getState();
       if (k === 'f') { e.preventDefault(); setFocusMode(!ui.focusMode); }
-      else if (k === 'w') { e.preventDefault(); ui.toggleWideText(); }
       else if (ui.focusMode && pathname === '/verse' && (k === '1' || k === '2' || k === '3')) {
         e.preventDefault();
         ui.setPresentMode(k === '1' ? 'full' : k === '2' ? 'sloka' : 'translation');
