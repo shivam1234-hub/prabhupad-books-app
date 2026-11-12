@@ -20,6 +20,7 @@ import { TooltipLayer } from '@/desktop/ui';
 import { applyDesktopCss } from '@/desktop/globalCss';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { SANS } from '@/desktop/theme';
+import { FOCUS_PATHS } from '@/desktop/FocusBar';
 import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
@@ -70,13 +71,26 @@ function useGlobalShortcuts() {
   }, [pathname, router, focusSearch, toggleToc]);
 }
 
-/** Full-screen reading lives only on verse pages; leaving them, or leaving
+/** Full-screen reading lives on verse, chapter and śloka pages; leaving them, or leaving
  *  window full screen (Esc / F11), switches it off. */
 function useFocusMode() {
   const pathname = usePathname();
   const focusMode = useDesktopUi((s) => s.focusMode);
   const setFocusMode = useDesktopUi((s) => s.setFocusMode);
-  useEffect(() => { if (focusMode && pathname !== '/verse') setFocusMode(false); }, [pathname, focusMode, setFocusMode]);
+  const allowed = FOCUS_PATHS.includes(pathname);
+  useEffect(() => { if (focusMode && !allowed) setFocusMode(false); }, [allowed, focusMode, setFocusMode]);
+  // F toggles full-screen reading on the pages that have it.
+  useEffect(() => {
+    if (!allowed) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'f' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || typingInField()) return;
+      if (document.querySelector('[data-vb-pop], [aria-modal="true"]')) return;
+      e.preventDefault();
+      setFocusMode(!useDesktopUi.getState().focusMode);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [allowed, setFocusMode]);
   useEffect(() => {
     if (!focusMode) return;
     const onFs = () => { if (!document.fullscreenElement) setFocusMode(false); };
@@ -89,7 +103,7 @@ function useFocusMode() {
     window.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('fullscreenchange', onFs); window.removeEventListener('keydown', onKey); };
   }, [focusMode, setFocusMode]);
-  return focusMode && pathname === '/verse';
+  return focusMode && allowed;
 }
 
 function Shell() {

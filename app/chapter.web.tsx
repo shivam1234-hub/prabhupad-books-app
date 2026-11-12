@@ -17,6 +17,7 @@ import { ReaderVerse, Display, SectionKey } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Segmented, Chip, Empty } from '@/desktop/ui';
 import { tipProps } from '@/desktop/ui';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
+import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
 import { bookCrumbs, flatChapters, chapterHref, verseHref, shortRef } from '@/desktop/bookNav';
 import { SANS, SERIF, READING_W, tints, web, alpha } from '@/desktop/theme';
 
@@ -67,12 +68,15 @@ export default function ChapterScreen() {
   const settings = useSettingsStore((st) => st.settings);
   const tocOpen = useDesktopUi((st) => st.tocOpen);
   const toggleToc = useDesktopUi((st) => st.toggleToc);
+  const focus = useDesktopUi((st) => st.focusMode);
 
   const bookSlug = params.book ?? '';
   const chapter = parseInt(params.chapter ?? '1', 10) || 1;
   const canto = params.canto ? parseInt(params.canto, 10) : undefined;
   const book = getBook(bookSlug);
   const [mode, setMode] = useState<'list' | 'read'>('list');
+  // Full screen is for reading: switch the chapter to continuous text.
+  useEffect(() => { if (focus) setMode('read'); }, [focus]);
   const [display, setDisplay] = useState<Display>({
     devanagari: settings.showDevanagari,
     transliteration: settings.showTransliteration,
@@ -128,8 +132,17 @@ export default function ChapterScreen() {
 
   return (
     <View style={s.row}>
-      {tocOpen ? <BookToc book={book} canto={canto} chapter={chapter} /> : null}
+      {tocOpen && !focus ? <BookToc book={book} canto={canto} chapter={chapter} /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>
+        {focus ? (
+          <FocusBar label={`${book.title} · ${reference}`}>
+            <Segmented<'list' | 'read'>
+              value={mode}
+              onChange={setMode}
+              options={[{ key: 'list', label: '☰  Verses' }, { key: 'read', label: '▤  Read continuously' }]}
+            />
+          </FocusBar>
+        ) : (
         <View style={[s.toolbar, { borderBottomColor: colors.border }]}>
           {!tocOpen ? <IconBtn icon="☰" tip="Show contents  [" onPress={toggleToc} size={32} /> : null}
           <View style={{ flex: 1, minWidth: 0 }}>
@@ -140,10 +153,12 @@ export default function ChapterScreen() {
             onChange={setMode}
             options={[{ key: 'list', label: '☰  Verses' }, { key: 'read', label: '▤  Read continuously' }]}
           />
+          <FullScreenBtn onBefore={() => setMode('read')} />
         </View>
+        )}
 
         <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }}>
-          <SideNav dir={-1} label={prev ? chLabel(prev) : undefined} onPress={prev ? () => goCh(prev) : undefined} />
+          <SideNav dir={-1} label={prev ? chLabel(prev) : undefined} onPress={prev && !focus ? () => goCh(prev) : undefined} />
           <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={onScroll} scrollEventThrottle={64}>
             <View style={s.column} dataSet={{ vbPage: '1' }}>
               <Text style={[s.eyebrow, { color: colors.primary }]}>{book.title.toUpperCase()} · {reference.toUpperCase()}</Text>
@@ -194,7 +209,7 @@ export default function ChapterScreen() {
               {!loading && verses.length === 0 && !error ? <Empty icon="📜" title="No texts loaded" /> : null}
 
               <View style={[s.bottomNav, { borderTopColor: colors.border }]}>
-                {prev ? <Btn label={`‹  ${chLabel(prev)}`} onPress={() => goCh(prev)} /> : <View />}
+                {prev && !focus ? <Btn label={`‹  ${chLabel(prev)}`} onPress={() => goCh(prev)} /> : <View />}
                 {next ? <Btn label={`${chLabel(next)}  ›`} kind="primary" onPress={() => goCh(next)} /> : <View />}
               </View>
             </View>

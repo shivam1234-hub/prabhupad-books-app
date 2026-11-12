@@ -13,6 +13,8 @@ import {
   PRAYERS, QUOTED_VERSES, RANKED, QuotedVerse, quotedVerse, rankFor, rankedTitle, sectionName,
 } from '@/services/mostQuoted';
 import { Btn, IconBtn } from './ui';
+import { FullScreenBtn } from './FocusBar';
+import { useDesktopUi } from './uiStore';
 import { verseHref } from './bookNav';
 import { SANS, SERIF, web, alpha } from './theme';
 
@@ -20,6 +22,7 @@ export type SlokaList = 'ranked' | 'prayers' | 'all';
 export const LIST_LENGTH: Record<SlokaList, number> = { ranked: RANKED.length, prayers: PRAYERS.length, all: QUOTED_VERSES.length };
 
 export function SlokaDetail({ list, i, onGo }: { list: SlokaList; i: number; onGo: (i: number) => void }) {
+  const focus = useDesktopUi((st) => st.focusMode);
   const router = useRouter();
   const { colors } = useTheme();
   const sc = useSettingsStore((st) => st.settings.fontScale ?? 1);
@@ -80,6 +83,7 @@ export function SlokaDetail({ list, i, onGo }: { list: SlokaList; i: number; onG
         <IconBtn icon="›" tip="Next (→)" onPress={() => onGo(i + 1)} disabled={i >= len - 1} />
         <View style={{ flex: 1 }} />
         {badge ? <Text style={[s.badge, { color: colors.primary, backgroundColor: alpha(colors.primary, 0.12) }]}>{badge}</Text> : null}
+        {focus ? null : <FullScreenBtn />}
       </View>
 
       <Text style={[s.heading, { color: colors.text, fontSize: px(26) }]}>{heading}</Text>

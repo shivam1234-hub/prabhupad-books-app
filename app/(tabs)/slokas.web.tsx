@@ -11,6 +11,8 @@ import {
 } from '@/services/mostQuoted';
 import { Segmented, Chip } from '@/desktop/ui';
 import { SlokaDetail, SlokaList, LIST_LENGTH } from '@/desktop/SlokaDetail';
+import { FocusBar } from '@/desktop/FocusBar';
+import { useDesktopUi } from '@/desktop/uiStore';
 import { typingInField } from '@/desktop/uiStore';
 import { SANS, SERIF, tints, web, alpha } from '@/desktop/theme';
 
@@ -104,9 +106,11 @@ export default function SlokasScreen() {
   const detailRef = useRef<ScrollView>(null);
   useEffect(() => { detailRef.current?.scrollTo({ y: 0, animated: false }); }, [sel, mode]);
 
+  const focus = useDesktopUi((st) => st.focusMode);
   return (
-    <View style={s.row}>
-      <View style={[s.listPane, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
+    <View style={[s.row, focus && { flexDirection: 'column' }]}>
+      {focus ? <FocusBar label={`Most Quoted Ślokas · ${sel + 1} / ${LIST_LENGTH[mode]}`} /> : null}
+      {focus ? null : <View style={[s.listPane, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
         <View style={[s.top, { borderBottomColor: colors.border }]}>
           <Text style={[s.h1, { color: colors.text }]}>Most Quoted Ślokas</Text>
           <Segmented<SlokaList> value={mode} onChange={(m) => select(m, 0)} options={MODES} style={{ alignSelf: 'stretch' }} />
@@ -161,7 +165,7 @@ export default function SlokasScreen() {
             );
           })}
         </ScrollView>
-      </View>
+      </View>}
       <ScrollView ref={detailRef} style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={s.detail}>
         <View style={{ width: '100%', maxWidth: 720 }} dataSet={{ vbPage: '1' }}>
           <SlokaDetail list={mode} i={sel} onGo={(i) => select(mode, i)} />
