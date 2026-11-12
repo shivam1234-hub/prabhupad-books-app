@@ -17,7 +17,7 @@ import { ReaderVerse, Display, SectionKey } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Segmented, Chip, Empty } from '@/desktop/ui';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
-import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
+import { useAutoHideBar, AutoHideBar, BarSpacer, useRevealAtTop } from '@/desktop/autoHide';
 import { bookCrumbs, flatChapters, chapterHref, verseHref, shortRef } from '@/desktop/bookNav';
 import { SANS, SERIF, READING_W_WIDE, tints, web } from '@/desktop/theme';
 
@@ -103,6 +103,7 @@ export default function ChapterScreen() {
   });
   const scrollRef = useRef<ScrollView>(null);
   const bar = useAutoHideBar();
+  useRevealAtTop(focus, bar.height);
   const restored = useRef<string | null>(null);
   useEffect(() => {
     if (!verses.length || restored.current === routeKey) return;

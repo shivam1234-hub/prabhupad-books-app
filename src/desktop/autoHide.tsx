@@ -44,6 +44,34 @@ export function useAutoHideBar(pinned = false) {
   return { shown, height, setHeight, onScrollY, onTap };
 }
 
+/** Full-screen reading: the hidden bar (with search) slides in when the mouse
+ *  goes to the top of the screen and slides away again when it moves down —
+ *  unless the search box is being typed in or its suggestions are open. */
+export function useRevealAtTop(enabled: boolean, barHeight: number) {
+  const setShown = useDesktopUi((s) => s.setBarsShown);
+  useEffect(() => {
+    if (!enabled) return;
+    let hideTimer: any = null;
+    const busy = () => {
+      const el = document.activeElement as HTMLElement | null;
+      const typing = !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+      return typing || !!document.querySelector('[data-vb-pop], [aria-modal="true"]');
+    };
+    const onMove = (e: MouseEvent) => {
+      if (e.clientY <= 48) {
+        clearTimeout(hideTimer); hideTimer = null;
+        setShown(true);
+      } else if (e.clientY > barHeight + 120 && useDesktopUi.getState().barsShown && !busy()) {
+        if (!hideTimer) hideTimer = setTimeout(() => { hideTimer = null; if (!busy()) setShown(false); }, 500);
+      } else if (e.clientY <= barHeight + 120) {
+        clearTimeout(hideTimer); hideTimer = null;
+      }
+    };
+    window.addEventListener('mousemove', onMove);
+    return () => { window.removeEventListener('mousemove', onMove); clearTimeout(hideTimer); };
+  }, [enabled, barHeight, setShown]);
+}
+
 export function AutoHideBar({ bar, children }: { bar: ReturnType<typeof useAutoHideBar>; children: React.ReactNode }) {
   return (
     <View

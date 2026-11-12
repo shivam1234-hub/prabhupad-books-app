@@ -24,7 +24,7 @@ import { ReaderVerse, Display, LinkedCitation, Anchor } from '@/desktop/ReaderVe
 import { Breadcrumbs, Btn, IconBtn, Empty } from '@/desktop/ui';
 import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
 import { Presentation, PresentControls } from '@/desktop/Presentation';
-import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
+import { useAutoHideBar, AutoHideBar, BarSpacer, useRevealAtTop } from '@/desktop/autoHide';
 import { TagDialog, NoteDialog } from '@/desktop/VerseDialogs';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { hoverIntent } from '@/desktop/hoverIntent';
@@ -47,12 +47,13 @@ export default function VerseScreen() {
   const focus = useDesktopUi((st) => st.focusMode);
   const presentMode = useDesktopUi((st) => st.presentMode);
   useEffect(() => { if (focus) closeFind(); }, [focus]);
-  // Entering presentation: let the audience see only the text after a moment.
+  // Entering presentation (or opening another verse in it, e.g. from search):
+  // let the audience see only the text after a moment.
   useEffect(() => {
     if (!(focus && presentMode !== 'full')) return;
     const id = setTimeout(() => useDesktopUi.getState().setBarsShown(false), 1800);
     return () => clearTimeout(id);
-  }, [focus, presentMode]);
+  }, [focus, presentMode, params.book, params.chapter, params.verse, params.canto]);
 
   const bookSlug = params.book ?? '';
   const chapter = parseInt(params.chapter ?? '1', 10) || 1;
@@ -157,6 +158,7 @@ export default function VerseScreen() {
   const [count, setCount] = useState(0);
   const findInput = useRef<any>(null);
   const bar = useAutoHideBar(findOpen);
+  useRevealAtTop(focus, bar.height);
   const closeFind = () => { setFindOpen(false); setFindQ(''); setActive(0); };
   useEffect(() => { setActive(0); }, [findQ]);
   useEffect(() => {
