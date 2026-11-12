@@ -70,13 +70,36 @@ function useGlobalShortcuts() {
   }, [pathname, router, focusSearch, toggleToc]);
 }
 
+/** Full-screen reading lives only on verse pages; leaving them, or leaving
+ *  window full screen (Esc / F11), switches it off. */
+function useFocusMode() {
+  const pathname = usePathname();
+  const focusMode = useDesktopUi((s) => s.focusMode);
+  const setFocusMode = useDesktopUi((s) => s.setFocusMode);
+  useEffect(() => { if (focusMode && pathname !== '/verse') setFocusMode(false); }, [pathname, focusMode, setFocusMode]);
+  useEffect(() => {
+    if (!focusMode) return;
+    const onFs = () => { if (!document.fullscreenElement) setFocusMode(false); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || typingInField()) return;
+      if (document.querySelector('[data-vb-pop], [aria-modal="true"]')) return; // Esc closes the popup first
+      setFocusMode(false);
+    };
+    document.addEventListener('fullscreenchange', onFs);
+    window.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('fullscreenchange', onFs); window.removeEventListener('keydown', onKey); };
+  }, [focusMode, setFocusMode]);
+  return focusMode && pathname === '/verse';
+}
+
 function Shell() {
   const { colors, isDark } = useTheme();
   useEffect(() => { applyDesktopCss(colors, isDark); }, [colors, isDark]);
   useGlobalShortcuts();
+  const focus = useFocusMode();
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, fontFamily: SANS } as any}>
-      <DesktopHeader />
+      {focus ? null : <DesktopHeader />}
       <View style={{ flex: 1, minHeight: 0 }}>
         <Slot />
       </View>

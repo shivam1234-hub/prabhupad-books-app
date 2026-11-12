@@ -36,7 +36,7 @@ export function verseHref(r: { bookSlug: string; chapter: number; verse: string 
   };
 }
 
-function SearchBox() {
+export function SearchBox({ width }: { width?: number } = {}) {
   const { colors } = useTheme();
   const t = tints(colors);
   const router = useRouter();
@@ -88,7 +88,7 @@ function SearchBox() {
   const open = focused && q.trim().length > 0;
 
   return (
-    <View ref={wrap} style={s.searchWrap}>
+    <View ref={wrap} style={[s.searchWrap, width ? { width } : null]}>
       <View
         style={[
           s.search,

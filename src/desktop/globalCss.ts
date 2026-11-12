@@ -42,19 +42,14 @@ export function applyDesktopCss(c: ColorScheme, isDark: boolean) {
     styleEl.id = 'vb-desktop-css';
     document.head.appendChild(styleEl);
   }
-  const thumb = alpha(isDark ? '#FFFFFF' : '#000000', isDark ? 0.18 : 0.2);
-  const thumbHover = alpha(isDark ? '#FFFFFF' : '#000000', isDark ? 0.32 : 0.36);
   styleEl.textContent = `
 ${FONTS}
 html, body { background: ${c.background}; color-scheme: ${isDark ? 'dark' : 'light'}; }
 body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
 ::selection { background: ${alpha(c.primary, 0.28)}; }
-* { scrollbar-width: thin; scrollbar-color: ${thumb} transparent; }
-::-webkit-scrollbar { width: 11px; height: 11px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: ${thumb}; border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-thumb:hover { background: ${thumbHover}; border: 3px solid transparent; background-clip: content-box; }
-::-webkit-scrollbar-corner { background: transparent; }
+/* No visible scrollbars anywhere — wheel, touchpad, keyboard and drag still scroll. */
+* { scrollbar-width: none; -ms-overflow-style: none; }
+::-webkit-scrollbar { display: none; width: 0; height: 0; }
 :focus { outline: none; }
 :focus-visible { outline: 2px solid ${c.primary}; outline-offset: 2px; border-radius: 6px; }
 input, textarea, select { font-family: inherit; }

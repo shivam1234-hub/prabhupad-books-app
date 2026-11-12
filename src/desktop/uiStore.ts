@@ -17,6 +17,9 @@ interface DesktopUi {
   /** Bumped to open the reader settings popover from the keyboard. */
   readerSettings: number;
   openReaderSettings: () => void;
+  /** Full-screen reading: only the verse, Next and the search bar. */
+  focusMode: boolean;
+  setFocusMode: (on: boolean) => void;
 }
 
 export const useDesktopUi = create<DesktopUi>((set, get) => ({
@@ -30,6 +33,16 @@ export const useDesktopUi = create<DesktopUi>((set, get) => ({
   },
   readerSettings: 0,
   openReaderSettings: () => set({ readerSettings: get().readerSettings + 1 }),
+  focusMode: false,
+  setFocusMode: (on) => {
+    if (get().focusMode === on) return;
+    set({ focusMode: on });
+    // The HTML Fullscreen API makes the Electron window itself full screen.
+    try {
+      if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+      else if (!on && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    } catch { /* not supported — the reading layout still applies */ }
+  },
 }));
 
 /** True when keyboard focus is in a text field (so page shortcuts stand down). */

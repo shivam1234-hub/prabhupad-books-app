@@ -23,6 +23,7 @@ import { useTrackedRoute } from '@/hooks/useTrackedRoute';
 import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, LinkedCitation, Anchor } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Empty } from '@/desktop/ui';
+import { SearchBox } from '@/desktop/DesktopHeader';
 import { tipProps } from '@/desktop/ui';
 import { TagDialog, NoteDialog } from '@/desktop/VerseDialogs';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
@@ -68,6 +69,8 @@ export default function VerseScreen() {
   const settings = useSettingsStore((st) => st.settings);
   const tocOpen = useDesktopUi((st) => st.tocOpen);
   const toggleToc = useDesktopUi((st) => st.toggleToc);
+  const focus = useDesktopUi((st) => st.focusMode);
+  const setFocusMode = useDesktopUi((st) => st.setFocusMode);
 
   const bookSlug = params.book ?? '';
   const chapter = parseInt(params.chapter ?? '1', 10) || 1;
@@ -185,6 +188,8 @@ export default function VerseScreen() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
+      const ui = useDesktopUi.getState();
+      if (mod && e.key.toLowerCase() === 'f' && ui.focusMode) { e.preventDefault(); ui.focusSearch(); return; }
       if (mod && e.key.toLowerCase() === 'f') {
         e.preventDefault();
         setFindOpen(true);
@@ -193,6 +198,7 @@ export default function VerseScreen() {
       }
       if (typingInField() || mod || e.altKey || e.shiftKey) return;
       if (document.querySelector('[data-vb-pop], [aria-modal="true"]')) return; // a popup has the keyboard
+      if (e.key.toLowerCase() === 'f') { e.preventDefault(); closeFind(); ui.setFocusMode(!ui.focusMode); return; }
       if (e.key === 'ArrowLeft' && navRef.current.prev) { e.preventDefault(); go(navRef.current.prev); }
       else if (e.key === 'ArrowRight' && navRef.current.next) { e.preventDefault(); go(navRef.current.next); }
     };
@@ -245,10 +251,19 @@ export default function VerseScreen() {
 
   return (
     <View style={s.row}>
-      {tocOpen ? (
+      {tocOpen && !focus ? (
         <BookToc book={book} canto={canto} chapter={chapter} verse={verseNum} pageId={vsTitle ? verseNum : undefined} />
       ) : null}
       <View style={{ flex: 1, minWidth: 0 }}>
+        {focus ? (
+          <View style={[s.focusBar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
+            <Text style={[s.focusRef, { color: colors.textMuted }]} numberOfLines={1}>{book ? shortRef(book, chapter, displayNum, canto) : ''}</Text>
+            <SearchBox width={520} />
+            <View style={s.focusRight}>
+              <Btn size="sm" kind="ghost" icon="✕" label="Exit full screen" onPress={() => setFocusMode(false)} tip="Back to the normal view  (Esc or F)" />
+            </View>
+          </View>
+        ) : (
         <View style={[s.toolbar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
           {!tocOpen ? <IconBtn icon="☰" tip="Show contents  [" onPress={toggleToc} size={32} /> : null}
           <View style={{ flex: 1, minWidth: 0 }}><Breadcrumbs items={crumbs} /></View>
@@ -261,9 +276,11 @@ export default function VerseScreen() {
             onPress={handleWallpaper}
             tip="Save this verse as a wallpaper image and pin it as today's śloka"
           />
+          <IconBtn icon="⛶" tip="Full-screen reading — only the verse, Next and search  (F)" onPress={() => { closeFind(); setFocusMode(true); }} size={32} />
         </View>
+        )}
 
-        {findOpen ? (
+        {findOpen && !focus ? (
           <View style={[s.findBar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
             <Text style={[s.findIcon, { color: colors.textMuted }]}>⌕</Text>
             <TextInput
@@ -288,7 +305,7 @@ export default function VerseScreen() {
         ) : null}
 
         <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }}>
-          <SideArrow dir={-1} onPress={nav.prev ? () => go(nav.prev) : undefined} label={nav.prev?.label} />
+          <SideArrow dir={-1} onPress={nav.prev && !focus ? () => go(nav.prev) : undefined} label={nav.prev?.label} />
           <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={onScroll} scrollEventThrottle={64}>
             <View style={s.column} dataSet={{ vbPage: '1' }}>
               {loading ? (
@@ -301,7 +318,7 @@ export default function VerseScreen() {
                   {chMeta && !/chapter\s+\d+\s*$/i.test(chMeta.title) ? (
                     <Text style={[s.subtitle, { color: colors.textMuted }]}>{chMeta.title}</Text>
                   ) : null}
-                  {myNote ? (
+                  {myNote && !focus ? (
                     <Pressable onPress={() => setShowNote(true)} style={(st: PState) => [s.note, { backgroundColor: st.hovered ? t.hover : colors.surface, borderColor: colors.border, borderLeftColor: colors.primary }, web({ cursor: 'pointer' })]}>
                       <Text style={[s.noteLabel, { color: colors.primary }]}>MY NOTE</Text>
                       <Text style={[s.noteText, { color: colors.textSecondary }]} numberOfLines={4}>{myNote.content}</Text>
@@ -318,11 +335,11 @@ export default function VerseScreen() {
                     onCitationOpen={(c) => openRef(c.ref)}
                     onPersonHover={onPersonHover}
                   />
-                  <Text style={[s.hint, { color: colors.textMuted }]}>
+                  {focus ? null : <Text style={[s.hint, { color: colors.textMuted }]}>
                     Click a Sanskrit word in the synonyms — or double-click any word — for its meaning. Hover a verse reference to preview it.
-                  </Text>
+                  </Text>}
                   <View style={[s.bottomNav, { borderTopColor: colors.border }]}>
-                    {nav.prev ? <Btn label={`‹  ${nav.prev.label}`} onPress={() => go(nav.prev)} /> : <View />}
+                    {nav.prev && !focus ? <Btn label={`‹  ${nav.prev.label}`} onPress={() => go(nav.prev)} /> : <View />}
                     {nav.next ? <Btn label={`${nav.next.label}  ›`} kind="primary" onPress={() => go(nav.next)} /> : <View />}
                   </View>
                 </>
@@ -350,6 +367,9 @@ export default function VerseScreen() {
 
 const s = StyleSheet.create({
   row: { flex: 1, flexDirection: 'row', minHeight: 0 },
+  focusBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, height: 60, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 50 },
+  focusRef: { position: 'absolute', left: 20, fontFamily: SERIF, fontSize: 15, fontWeight: '600', maxWidth: 260 },
+  focusRight: { position: 'absolute', right: 16 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 52, borderBottomWidth: StyleSheet.hairlineWidth },
   findBar: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 16, height: 44, borderBottomWidth: StyleSheet.hairlineWidth },
   findIcon: { fontSize: 17 },
