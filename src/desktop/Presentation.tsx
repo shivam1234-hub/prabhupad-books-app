@@ -1,4 +1,4 @@
-// Presentation view for full-screen verse reading: only the śloka, or only the
+// Presentation view for full-screen verse reading: only the (roman) śloka, or only the
 // translation, blown up to fill the whole screen — for projecting in a class.
 //
 // The text is fitted to the screen (largest size at which it still fits), and
@@ -8,7 +8,6 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { View, Text, StyleSheet } from 'react-native';
 import { Verse } from '@/types';
 import { useTheme } from '@/hooks/useTheme';
-import { useSettingsStore } from '@/store/settingsStore';
 import { Segmented, IconBtn } from './ui';
 import { useDesktopUi, PresentMode } from './uiStore';
 import { SANS, SERIF, web } from './theme';
@@ -37,20 +36,19 @@ function fitSize(box: HTMLElement, content: HTMLElement): number {
 
 export function Presentation({ verse, mode, onTap }: { verse: Verse; mode: Exclude<PresentMode, 'full'>; onTap?: (e: any) => void }) {
   const { colors } = useTheme();
-  const settings = useSettingsStore((st) => st.settings);
   const zoom = useDesktopUi((st) => st.presentZoom);
   const zoomPresent = useDesktopUi((st) => st.zoomPresent);
   const boxRef = useRef<any>(null);
   const contentRef = useRef<any>(null);
   const [fit, setFit] = useState<number | null>(null);
 
-  // Śloka: Devanāgarī and the roman verse text, as the reader settings show
-  // them (both when the settings hide both). Translation: the translation.
+  // Śloka: the roman (English-letter) verse text only — the user asked for no
+  // Devanāgarī here; it shows only when a page has no roman text at all.
+  // Translation: the translation.
   const hasDeva = !!verse.devanagari?.trim();
   const hasTr = !!verse.transliteration?.trim();
-  let showDeva = hasDeva && settings.showDevanagari;
-  let showTr = hasTr && settings.showTransliteration;
-  if (!showDeva && !showTr) { showDeva = hasDeva; showTr = hasTr; }
+  const showTr = hasTr;
+  const showDeva = !hasTr && hasDeva;
   const translation = (verse.translation ?? '').split(/\n{2,}/).map((p) => p.trim()).filter(Boolean);
   const empty = mode === 'sloka' ? !showDeva && !showTr : translation.length === 0;
 
@@ -105,13 +103,17 @@ export function Presentation({ verse, mode, onTap }: { verse: Verse; mode: Exclu
         ) : mode === 'sloka' ? (
           <>
             {showDeva ? (
-              <Text selectable style={[s.deva, { color: colors.devanagari }]}>{lines(verse.devanagari!).join('\n')}</Text>
+              lines(verse.devanagari!).map((l, i) => (
+                <Text key={i} selectable style={[s.deva, { color: colors.devanagari }, web({ whiteSpace: 'nowrap' })]}>{l}</Text>
+              ))
             ) : null}
-            {showTr ? (
-              <Text selectable style={[s.translit, { color: colors.transliteration === colors.textSecondary ? colors.text : colors.transliteration }, showDeva && s.gapAbove]}>
-                {lines(verse.transliteration!).join('\n')}
+            {/* One verse line per row, never wrapped: the fit shrinks the text
+                until the longest line fits the screen width. */}
+            {showTr ? lines(verse.transliteration!).map((l, i) => (
+              <Text key={i} selectable style={[s.translit, { color: colors.transliteration === colors.textSecondary ? colors.text : colors.transliteration }, web({ whiteSpace: 'nowrap' })]}>
+                {l}
               </Text>
-            ) : null}
+            )) : null}
           </>
         ) : (
           translation.map((p, i) => (
