@@ -1,7 +1,7 @@
 // One entry of the Ślokas collection (a most-quoted verse, a prayer with all
 // its verses, or any selected verse) — the reading pane of the desktop Ślokas
 // page. Content and memorized ticks are the same as the phone's sloka screen.
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
@@ -16,12 +16,15 @@ import { Btn, IconBtn } from './ui';
 import { FullScreenBtn } from './FocusBar';
 import { useDesktopUi } from './uiStore';
 import { verseHref } from './bookNav';
+import { parseSynonyms } from './ReaderVerse';
+import { WordMeaningSheet } from '@/components/WordMeaningSheet';
 import { SANS, SERIF, web, alpha } from './theme';
 
 export type SlokaList = 'ranked' | 'prayers' | 'all';
 export const LIST_LENGTH: Record<SlokaList, number> = { ranked: RANKED.length, prayers: PRAYERS.length, all: QUOTED_VERSES.length };
 
 export function SlokaDetail({ list, i, onGo }: { list: SlokaList; i: number; onGo: (i: number) => void }) {
+  const [lookup, setLookup] = useState<string | null>(null);
   const focus = useDesktopUi((st) => st.focusMode);
   const router = useRouter();
   const { colors } = useTheme();
@@ -109,7 +112,22 @@ export function SlokaDetail({ list, i, onGo }: { list: SlokaList; i: number; onG
           {v.synonyms ? (
             <>
               <Text style={[s.label, { color: colors.text }]}>Synonyms</Text>
-              <Text selectable style={[s.body, { color: colors.text, fontSize: px(15.5), lineHeight: px(26) }]}>{v.synonyms}</Text>
+              <Text selectable style={[s.body, { color: colors.text, fontSize: px(15.5), lineHeight: px(26) }]}>
+                {parseSynonyms(v.synonyms).map((p, k2, all) => (
+                  <React.Fragment key={k2}>
+                    <Text
+                      dataSet={{ vbSyn: '1' }}
+                      accessibilityRole="link"
+                      onPress={() => setLookup(p.word)}
+                      style={[{ fontStyle: 'italic', color: colors.primary }, web({ cursor: 'pointer' })]}
+                    >
+                      {p.word}
+                    </Text>
+                    {p.meaning ? ` — ${p.meaning}` : ''}
+                    {k2 < all.length - 1 ? '; ' : ''}
+                  </React.Fragment>
+                ))}
+              </Text>
             </>
           ) : null}
           {v.translation ? (
@@ -129,6 +147,12 @@ export function SlokaDetail({ list, i, onGo }: { list: SlokaList; i: number; onG
         </View>
       ) : null}
       <Text style={[s.source, { color: colors.textMuted }]}>From “Verses Most Quoted by Śrīla Prabhupāda”, Bhaktivedanta Archives.</Text>
+      <WordMeaningSheet
+        word={lookup}
+        sanskritFirst
+        onClose={() => setLookup(null)}
+        onOpenVerse={(r) => { setLookup(null); router.push(verseHref(r.bookSlug, r.chapter, r.verse, r.canto ?? undefined)); }}
+      />
     </View>
   );
 }

@@ -60,9 +60,11 @@ function personalitySegments(segs: Segment[], seen: Set<string>): Segment[] {
   return out;
 }
 
-function parseSynonyms(s: string): { word: string; meaning: string }[] {
+/** "word — meaning; …" (vedabase) or "word—meaning; …" (Most Quoted list). A
+ *  bare hyphen only splits with spaces round it — Sanskrit compounds use it. */
+export function parseSynonyms(s: string): { word: string; meaning: string }[] {
   return s.split(';').map((x) => x.trim()).filter(Boolean).map((seg) => {
-    const m = seg.match(/^([\s\S]*?)\s[–—-]\s([\s\S]*)$/);
+    const m = seg.match(/^([\s\S]*?)\s*[–—]\s*([\s\S]*)$/) ?? seg.match(/^([\s\S]*?)\s-\s([\s\S]*)$/);
     return m ? { word: m[1].trim(), meaning: m[2].trim() } : { word: seg, meaning: '' };
   });
 }
