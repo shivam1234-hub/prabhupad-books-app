@@ -19,6 +19,10 @@ export interface VedabaseDesktopBridge {
   openExternal?(url: string): Promise<boolean>;
   /** The desktop app's version (package.json). */
   appVersion?: string;
+  /** Ctrl + / − / 0 (dir 1 / -1 / 0); returns an unsubscribe. */
+  onZoomKey?(handler: (dir: -1 | 0 | 1) => void): () => void;
+  /** Zoom the whole window a step (dir 0 = 100%). */
+  zoomWindow?(dir: -1 | 0 | 1): void;
 }
 
 declare global {

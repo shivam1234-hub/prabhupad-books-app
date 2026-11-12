@@ -1,5 +1,5 @@
 // Desktop verse page, modelled on vedabase.io's verse view: breadcrumbs, a
-// centred reading column, big ‹ › arrows at the sides (and ← / → keys), and a
+// centred reading column, ← / → keys for prev / next, and a
 // collapsible contents sidebar. Every action of the phone's verse screen is
 // here except the phone-only wallpaper: save + tags, note, word meanings, find in page,
 // verse-reference previews and personalities.
@@ -22,44 +22,19 @@ import { useTrackedRoute } from '@/hooks/useTrackedRoute';
 import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, LinkedCitation, Anchor } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Empty } from '@/desktop/ui';
-import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
+import { FocusBar, FullScreenBtn, WidthBtn, readingWidth } from '@/desktop/FocusBar';
+import { Presentation, PresentControls } from '@/desktop/Presentation';
 import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
-import { tipProps } from '@/desktop/ui';
 import { TagDialog, NoteDialog } from '@/desktop/VerseDialogs';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { hoverIntent } from '@/desktop/hoverIntent';
 import {
   bookCrumbs, flatChapters, chapterHref, verseHref, useVerseIds, idContains, shortRef, chapterMeta, isProseBook,
 } from '@/desktop/bookNav';
-import { SANS, SERIF, READING_W, tints, web, alpha } from '@/desktop/theme';
+import { SANS, SERIF, READING_W, tints, web } from '@/desktop/theme';
 
 type PState = { pressed: boolean; hovered?: boolean };
 const libHref = (r: LibraryRef): Href => verseHref(r.bookSlug, r.chapter, r.verse, r.canto ?? undefined);
-
-function SideArrow({ dir, onPress, label }: { dir: -1 | 1; onPress?: () => void; label?: string }) {
-  const { colors } = useTheme();
-  const t = tints(colors);
-  if (!onPress) return <View style={s.sideSlot} />;
-  return (
-    <View style={s.sideSlot}>
-      <Pressable
-        onPress={onPress}
-        accessibilityRole="link"
-        accessibilityLabel={label}
-        {...tipProps(label ? `${label}  (${dir < 0 ? '←' : '→'})` : undefined)}
-        style={(st: PState) => [
-          s.side,
-          { backgroundColor: st.hovered ? t.hoverStrong : 'transparent' },
-          web({ cursor: 'pointer', transition: 'background-color 140ms' }),
-        ]}
-      >
-        {(st: PState) => (
-          <Text style={[s.sideGlyph, { color: st.hovered ? colors.primary : alpha(colors.textMuted, 0.9) }]}>{dir < 0 ? '‹' : '›'}</Text>
-        )}
-      </Pressable>
-    </View>
-  );
-}
 
 export default function VerseScreen() {
   const params = useLocalSearchParams<{ book: string; chapter: string; verse: string; canto: string }>();
@@ -70,7 +45,15 @@ export default function VerseScreen() {
   const tocOpen = useDesktopUi((st) => st.tocOpen);
   const toggleToc = useDesktopUi((st) => st.toggleToc);
   const focus = useDesktopUi((st) => st.focusMode);
+  const presentMode = useDesktopUi((st) => st.presentMode);
+  const wide = useDesktopUi((st) => st.wideText);
   useEffect(() => { if (focus) closeFind(); }, [focus]);
+  // Entering presentation: let the audience see only the text after a moment.
+  useEffect(() => {
+    if (!(focus && presentMode !== 'full')) return;
+    const id = setTimeout(() => useDesktopUi.getState().setBarsShown(false), 1800);
+    return () => clearTimeout(id);
+  }, [focus, presentMode]);
 
   const bookSlug = params.book ?? '';
   const chapter = parseInt(params.chapter ?? '1', 10) || 1;
@@ -79,6 +62,8 @@ export default function VerseScreen() {
   const book = getBook(bookSlug);
   const { verse, loading, error, refresh } = useVerse(bookSlug, chapter, verseNum, canto);
   const { isFavorite, addFavorite, removeFavorite, updateNote, getNote } = useFavoritesStore();
+  // Full screen + "Śloka" / "Translation": only that text, filling the screen.
+  const presenting = focus && presentMode !== 'full' && !!verse && !loading;
 
   const verseId = verse?.id ?? '';
   const fav = isFavorite(verseId);
@@ -249,7 +234,9 @@ export default function VerseScreen() {
       <View style={{ flex: 1, minWidth: 0 }}>
         <AutoHideBar bar={bar}>
         {focus ? (
-          <FocusBar label={book ? shortRef(book, chapter, displayNum, canto) : ''} />
+          <FocusBar label={book ? shortRef(book, chapter, displayNum, canto) : ''} searchWidth={340}>
+            <PresentControls />
+          </FocusBar>
         ) : (
         <View style={[s.toolbar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
           {!tocOpen ? <IconBtn icon="☰" tip="Show contents  [" onPress={toggleToc} size={32} /> : null}
@@ -257,6 +244,7 @@ export default function VerseScreen() {
           <Btn size="sm" kind={fav ? 'secondary' : 'ghost'} icon={fav ? '★' : '☆'} label={fav ? 'Saved' : 'Save'} onPress={handleSave} tip={fav ? 'Edit tags or remove from Saved' : 'Save this verse'} />
           <Btn size="sm" kind={myNote ? 'secondary' : 'ghost'} icon="✎" label={myNote ? 'Note ●' : 'Note'} onPress={() => setShowNote(true)} tip="Write a personal note" />
           <Btn size="sm" kind={findOpen ? 'secondary' : 'ghost'} icon="⌕" label="Find" onPress={() => { setFindOpen((o) => !o); setTimeout(() => findInput.current?.focus(), 0); }} tip="Find in this page (Ctrl+F)" />
+          <WidthBtn />
           <FullScreenBtn />
         </View>
         )}
@@ -286,11 +274,13 @@ export default function VerseScreen() {
         ) : null}
         </AutoHideBar>
 
+        {presenting && verse ? (
+          <Presentation verse={verse} mode={presentMode as 'sloka' | 'translation'} onTap={bar.onTap} />
+        ) : (
         <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }} {...({ onClick: bar.onTap } as any)}>
-          <SideArrow dir={-1} onPress={nav.prev && !focus ? () => go(nav.prev) : undefined} label={nav.prev?.label} />
           <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={(e) => { onScroll(e); bar.onScrollY(e.nativeEvent.contentOffset.y); }} scrollEventThrottle={32}>
             <BarSpacer bar={bar} />
-            <View style={s.column} dataSet={{ vbPage: '1' }}>
+            <View style={[s.column, { maxWidth: readingWidth(wide, READING_W) }, wide && s.columnWide]} dataSet={{ vbPage: '1' }}>
               {loading ? (
                 <View style={s.center}><ActivityIndicator size="large" color={colors.primary} /><Text style={[s.muted, { color: colors.textMuted }]}>Loading…</Text></View>
               ) : error || !verse ? (
@@ -329,8 +319,8 @@ export default function VerseScreen() {
               )}
             </View>
           </ScrollView>
-          <SideArrow dir={1} onPress={nav.next ? () => go(nav.next) : undefined} label={nav.next?.label} />
         </View>
+        )}
       </View>
 
       <WordMeaningSheet
@@ -355,11 +345,9 @@ const s = StyleSheet.create({
   findIcon: { fontSize: 17 },
   findInput: { flex: 1, fontFamily: SANS, fontSize: 14, height: 34 },
   findCount: { fontFamily: SANS, fontSize: 12.5, fontWeight: '600', minWidth: 48, textAlign: 'right' },
-  sideSlot: { width: 72, alignItems: 'center', justifyContent: 'center' },
-  side: { width: 56, height: 120, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  sideGlyph: { fontSize: 54, fontWeight: '200', marginTop: -8, fontFamily: SANS },
   scroll: { paddingTop: 36, paddingBottom: 80, alignItems: 'center' },
   column: { width: '100%', maxWidth: READING_W, gap: 22 },
+  columnWide: { paddingHorizontal: 48 },
   center: { alignItems: 'center', paddingVertical: 100, gap: 14 },
   muted: { fontFamily: SANS, fontSize: 14 },
   title: { fontFamily: SERIF, fontSize: 30, fontWeight: '700', textAlign: 'center', letterSpacing: 0.2 },

@@ -269,7 +269,10 @@ function buildMenu() {
               'Alt+← / Alt+→  Back / forward',
               '[  Show / hide the contents sidebar',
               'Esc  Close a popup',
-              'Ctrl + / Ctrl −  Zoom the whole window',
+              'F  Full-screen reading (verse, chapter, Ślokas pages)',
+              '1 / 2 / 3  In full screen: full page / only the śloka / only the translation',
+              'W  Text across the full width / narrow column',
+              'Ctrl + / Ctrl − / Ctrl 0  Zoom (the śloka or translation when presenting, else the window)',
             ].join('\n'),
             buttons: ['OK'],
           }),
@@ -393,6 +396,19 @@ function registerHistoryShortcuts(win) {
 
   win.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
+    // Ctrl + / Ctrl − / Ctrl 0: the renderer decides what to zoom — the
+    // presentation text in full-screen śloka/translation view, else the whole
+    // window. (Electron's own Zoom In wants Ctrl+Shift+= on Windows, and the
+    // menu shortcut would never reach the page.)
+    if ((input.control || input.meta) && !input.alt) {
+      const k = input.key;
+      const dir = k === '=' || k === '+' ? 1 : k === '-' || k === '_' ? -1 : k === '0' ? 0 : null;
+      if (dir !== null) {
+        event.preventDefault();
+        win.webContents.send('vedabase:zoom-key', dir);
+        return;
+      }
+    }
     const back =
       (input.alt && input.key === 'ArrowLeft') ||            // Windows/Linux
       (input.meta && input.key === '[') ||                   // macOS

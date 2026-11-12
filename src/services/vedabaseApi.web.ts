@@ -236,7 +236,7 @@ const chapterKeyOf = (c: { chapter: number; cantoPart?: number }) =>
 
 export async function fetchAndCacheBook(
   bookSlug: string,
-  chapterList: Array<{ chapter: number; verseCount: number; cantoPart?: number }>,
+  chapterList: Array<{ chapter: number; verseCount: number; cantoPart?: number; pageId?: string }>,
   language: Language = 'en',
   onProgress?: (done: number, total: number) => void,
   shouldStop?: () => boolean,
@@ -264,10 +264,18 @@ export async function fetchAndCacheBook(
 
   const pending = chapterList.filter((c) => !doneChapters.has(chapterKeyOf(c)));
   await runPool(pending, concurrency, async (c) => {
-    const { chapter, verseCount, cantoPart } = c;
+    const { verseCount, cantoPart, pageId } = c;
     const key = chapterKeyOf(c);
     if (stop()) return;
-    let verseIds = await limit(() => fetchChapterVerseList(bookSlug, chapter, cantoPart, language));
+    // Vanisource pages and prose books are one page each, opened by the reader
+    // as chapter 1 with the page id as the verse — fetch them exactly that way.
+    // Asking vedabase for a chapter list fell back to a page named "1", which
+    // doesn't exist, and left every such book "Partial 0/N" (same fix as the
+    // phone's vedabaseApi.ts).
+    const chapter = pageId ? 1 : c.chapter;
+    let verseIds = pageId
+      ? [pageId]
+      : await limit(() => fetchChapterVerseList(bookSlug, chapter, cantoPart, language));
     const listOk = verseIds.length > 0;
     if (!listOk) {
       verseIds = Array.from({ length: verseCount }, (_, i) => String(i + 1));
@@ -282,6 +290,7 @@ export async function fetchAndCacheBook(
       if (verse) success++;
       else { failed++; if (networkError) chapterNetworkError = true; }
       onProgress?.(++done, total);
+      if (done % 25 === 0) await setDownloadStatus(bookSlug, 'downloading', total, success);
     })));
     if (!chapterNetworkError && !chapterStopped) {
       await markDownloadedChapter(bookSlug, language, key, verseIds.length);

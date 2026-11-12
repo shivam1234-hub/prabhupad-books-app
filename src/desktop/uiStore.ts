@@ -7,6 +7,22 @@ function readToc(): boolean {
   try { return localStorage.getItem(TOC_KEY) !== '0'; } catch { return true; }
 }
 
+const PRESENT_KEY = 'vb_desktop_present_mode';
+const PZOOM_KEY = 'vb_desktop_present_zoom';
+const WIDE_KEY = 'vb_desktop_wide_text';
+
+/** What full-screen verse reading shows: the whole verse page, or only the
+ *  śloka / only the translation blown up to fill the screen (presentation). */
+export type PresentMode = 'full' | 'sloka' | 'translation';
+
+function read<T>(key: string, parse: (v: string | null) => T): T {
+  try { return parse(localStorage.getItem(key)); } catch { return parse(null); }
+}
+function write(key: string, v: string) {
+  try { localStorage.setItem(key, v); } catch { /* private mode */ }
+}
+const clampZoom = (z: number) => Math.min(3, Math.max(0.4, Math.round(z * 100) / 100));
+
 interface DesktopUi {
   /** Bumped to ask the header search box to take focus (Ctrl+K). */
   searchFocus: number;
@@ -23,6 +39,16 @@ interface DesktopUi {
   setBarsShown: (on: boolean | ((cur: boolean) => boolean)) => void;
   focusMode: boolean;
   setFocusMode: (on: boolean) => void;
+  /** Full-screen verse view: whole page, or śloka / translation only (presentation). */
+  presentMode: PresentMode;
+  setPresentMode: (m: PresentMode) => void;
+  /** Extra size on top of fit-to-screen in presentation (1 = fills the screen). */
+  presentZoom: number;
+  /** +1 bigger, -1 smaller, 0 back to fit-to-screen. */
+  zoomPresent: (dir: -1 | 0 | 1) => void;
+  /** Reading text uses the full window width (true) or a narrow book column. */
+  wideText: boolean;
+  toggleWideText: () => void;
 }
 
 export const useDesktopUi = create<DesktopUi>((set, get) => ({
@@ -51,7 +77,28 @@ export const useDesktopUi = create<DesktopUi>((set, get) => ({
       else if (!on && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
     } catch { /* not supported — the reading layout still applies */ }
   },
+  presentMode: read<PresentMode>(PRESENT_KEY, (v) => (v === 'sloka' || v === 'translation' ? v : 'full')),
+  setPresentMode: (m) => { write(PRESENT_KEY, m); set({ presentMode: m }); },
+  presentZoom: read(PZOOM_KEY, (v) => clampZoom(Number(v) || 1)),
+  zoomPresent: (dir) => {
+    const z = dir === 0 ? 1 : clampZoom(get().presentZoom * (dir > 0 ? 1.1 : 1 / 1.1));
+    write(PZOOM_KEY, String(z));
+    set({ presentZoom: z });
+  },
+  wideText: read(WIDE_KEY, (v) => v !== '0'),
+  toggleWideText: () => {
+    const next = !get().wideText;
+    write(WIDE_KEY, next ? '1' : '0');
+    set({ wideText: next });
+  },
 }));
+
+/** True while the verse page shows only the śloka or only the translation, full screen. */
+export function presenting(pathname?: string): boolean {
+  const st = useDesktopUi.getState();
+  const path = pathname ?? (typeof location !== 'undefined' ? location.pathname : '');
+  return st.focusMode && st.presentMode !== 'full' && path.endsWith('/verse');
+}
 
 /** True when keyboard focus is in a text field (so page shortcuts stand down). */
 export function typingInField(): boolean {

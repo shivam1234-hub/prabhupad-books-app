@@ -1,7 +1,7 @@
 // Desktop chapter page, like vedabase.io's chapter view: every text with its
 // translation in one list, or the whole chapter to read continuously (the
-// phone's "Advanced" view) with per-section toggles. Contents sidebar, side
-// arrows and ← / → move between chapters.
+// phone's "Advanced" view) with per-section toggles. Contents sidebar and
+// ← / → move between chapters.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -15,12 +15,11 @@ import { useTrackedRoute } from '@/hooks/useTrackedRoute';
 import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, SectionKey } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Segmented, Chip, Empty } from '@/desktop/ui';
-import { tipProps } from '@/desktop/ui';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
-import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
+import { FocusBar, FullScreenBtn, WidthBtn, readingWidth } from '@/desktop/FocusBar';
 import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
 import { bookCrumbs, flatChapters, chapterHref, verseHref, shortRef } from '@/desktop/bookNav';
-import { SANS, SERIF, READING_W, tints, web, alpha } from '@/desktop/theme';
+import { SANS, SERIF, READING_W, tints, web } from '@/desktop/theme';
 
 type PState = { pressed: boolean; hovered?: boolean };
 
@@ -70,6 +69,7 @@ export default function ChapterScreen() {
   const tocOpen = useDesktopUi((st) => st.tocOpen);
   const toggleToc = useDesktopUi((st) => st.toggleToc);
   const focus = useDesktopUi((st) => st.focusMode);
+  const wide = useDesktopUi((st) => st.wideText);
 
   const bookSlug = params.book ?? '';
   const chapter = parseInt(params.chapter ?? '1', 10) || 1;
@@ -156,16 +156,16 @@ export default function ChapterScreen() {
             onChange={setMode}
             options={[{ key: 'list', label: '☰  Verses' }, { key: 'read', label: '▤  Read continuously' }]}
           />
+          <WidthBtn />
           <FullScreenBtn onBefore={() => setMode('read')} />
         </View>
         )}
         </AutoHideBar>
 
         <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }} {...({ onClick: bar.onTap } as any)}>
-          <SideNav dir={-1} label={prev ? chLabel(prev) : undefined} onPress={prev && !focus ? () => goCh(prev) : undefined} />
           <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={(e) => { onScroll(e); bar.onScrollY(e.nativeEvent.contentOffset.y); }} scrollEventThrottle={32}>
             <BarSpacer bar={bar} />
-            <View style={s.column} dataSet={{ vbPage: '1' }}>
+            <View style={[s.column, { maxWidth: readingWidth(wide, READING_W + 40) }, wide && s.columnWide]} dataSet={{ vbPage: '1' }}>
               <Text style={[s.eyebrow, { color: colors.primary }]}>{book.title.toUpperCase()} · {reference.toUpperCase()}</Text>
               <Text style={[s.title, { color: colors.text }]}>{chapterName ?? reference}</Text>
 
@@ -219,27 +219,8 @@ export default function ChapterScreen() {
               </View>
             </View>
           </ScrollView>
-          <SideNav dir={1} label={next ? chLabel(next) : undefined} onPress={next ? () => goCh(next) : undefined} />
         </View>
       </View>
-    </View>
-  );
-}
-
-function SideNav({ dir, onPress, label }: { dir: -1 | 1; onPress?: () => void; label?: string }) {
-  const { colors } = useTheme();
-  const t = tints(colors);
-  return (
-    <View style={s.sideSlot}>
-      {onPress ? (
-        <Pressable
-          onPress={onPress}
-          {...tipProps(label ? `${label}  (${dir < 0 ? '←' : '→'})` : undefined)}
-          style={(st: PState) => [s.side, { backgroundColor: st.hovered ? t.hoverStrong : 'transparent' }, web({ cursor: 'pointer', transition: 'background-color 140ms' })]}
-        >
-          {(st: PState) => <Text style={[s.sideGlyph, { color: st.hovered ? colors.primary : alpha(colors.textMuted, 0.9) }]}>{dir < 0 ? '‹' : '›'}</Text>}
-        </Pressable>
-      ) : null}
     </View>
   );
 }
@@ -247,11 +228,9 @@ function SideNav({ dir, onPress, label }: { dir: -1 | 1; onPress?: () => void; l
 const s = StyleSheet.create({
   row: { flex: 1, flexDirection: 'row', minHeight: 0 },
   toolbar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, height: 52, borderBottomWidth: StyleSheet.hairlineWidth },
-  sideSlot: { width: 72, alignItems: 'center', justifyContent: 'center' },
-  side: { width: 56, height: 120, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  sideGlyph: { fontSize: 54, fontWeight: '200', marginTop: -8, fontFamily: SANS },
   scroll: { paddingTop: 36, paddingBottom: 80, alignItems: 'center' },
   column: { width: '100%', maxWidth: READING_W + 40 },
+  columnWide: { paddingHorizontal: 48 },
   eyebrow: { fontFamily: SANS, fontSize: 11.5, fontWeight: '700', letterSpacing: 1.4, textAlign: 'center' },
   title: { fontFamily: SERIF, fontSize: 30, fontWeight: '700', textAlign: 'center', marginTop: 10, marginBottom: 18, lineHeight: 40 },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 8 },

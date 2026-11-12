@@ -18,7 +18,8 @@ import { installWebAlert } from '@/utils/webAlert';
 import { DesktopHeader, historyGo } from '@/desktop/DesktopHeader';
 import { TooltipLayer } from '@/desktop/ui';
 import { applyDesktopCss } from '@/desktop/globalCss';
-import { useDesktopUi, typingInField } from '@/desktop/uiStore';
+import { useDesktopUi, typingInField, presenting } from '@/desktop/uiStore';
+import { getBridge } from '@/database/desktopBridge';
 import { SANS, HEADER_H, web } from '@/desktop/theme';
 import { FOCUS_PATHS } from '@/desktop/FocusBar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -79,18 +80,26 @@ function useFocusMode() {
   const setFocusMode = useDesktopUi((s) => s.setFocusMode);
   const allowed = FOCUS_PATHS.includes(pathname);
   useEffect(() => { if (focusMode && !allowed) setFocusMode(false); }, [allowed, focusMode, setFocusMode]);
-  // F toggles full-screen reading on the pages that have it.
+  // F toggles full-screen reading on the pages that have it; W switches the
+  // text between full width and a narrow column; in full-screen verse reading
+  // 1 / 2 / 3 show the full page / only the śloka / only the translation.
   useEffect(() => {
     if (!allowed) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() !== 'f' || e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || typingInField()) return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || typingInField()) return;
       if (document.querySelector('[data-vb-pop], [aria-modal="true"]')) return;
-      e.preventDefault();
-      setFocusMode(!useDesktopUi.getState().focusMode);
+      const k = e.key.toLowerCase();
+      const ui = useDesktopUi.getState();
+      if (k === 'f') { e.preventDefault(); setFocusMode(!ui.focusMode); }
+      else if (k === 'w') { e.preventDefault(); ui.toggleWideText(); }
+      else if (ui.focusMode && pathname === '/verse' && (k === '1' || k === '2' || k === '3')) {
+        e.preventDefault();
+        ui.setPresentMode(k === '1' ? 'full' : k === '2' ? 'sloka' : 'translation');
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [allowed, setFocusMode]);
+  }, [allowed, setFocusMode, pathname]);
   useEffect(() => {
     if (!focusMode) return;
     const onFs = () => { if (!document.fullscreenElement) setFocusMode(false); };
@@ -106,11 +115,35 @@ function useFocusMode() {
   return focusMode && allowed;
 }
 
+/** Ctrl + / − / 0: in full-screen śloka / translation view they size that text;
+ *  everywhere else they zoom the whole window. */
+function useZoomKeys() {
+  useEffect(() => {
+    const bridge = getBridge();
+    const apply = (dir: -1 | 0 | 1) => {
+      if (presenting()) useDesktopUi.getState().zoomPresent(dir);
+      else bridge?.zoomWindow?.(dir);
+    };
+    if (bridge?.onZoomKey) return bridge.onZoomKey(apply);
+    // Plain browser (npm run web): only the presentation zoom is ours.
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey || !presenting()) return;
+      const dir = e.key === '=' || e.key === '+' ? 1 : e.key === '-' || e.key === '_' ? -1 : e.key === '0' ? 0 : null;
+      if (dir === null) return;
+      e.preventDefault();
+      apply(dir);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+}
+
 function Shell() {
   const { colors, isDark } = useTheme();
   useEffect(() => { applyDesktopCss(colors, isDark); }, [colors, isDark]);
   useGlobalShortcuts();
   const focus = useFocusMode();
+  useZoomKeys();
   const pathname = usePathname();
   // On reading pages the app bar hides with the page's own bar (scroll down /
   // click the page); every new page starts with the bars showing.

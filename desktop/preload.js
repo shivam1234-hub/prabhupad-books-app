@@ -3,7 +3,7 @@
 // contextIsolation stays on and nodeIntegration stays off: page script gets a
 // small, fixed surface — a named database call, a fetch restricted to the two
 // content hosts, and desktop notifications — never `require` or raw IPC.
-const { contextBridge, ipcRenderer } = require('electron');
+const { contextBridge, ipcRenderer, webFrame } = require('electron');
 
 contextBridge.exposeInMainWorld('vedabaseDesktop', {
   platform: process.platform,
@@ -39,4 +39,16 @@ contextBridge.exposeInMainWorld('vedabaseDesktop', {
   openExternal: (url) => ipcRenderer.invoke('vedabase:open-external', url),
 
   appVersion: ipcRenderer.sendSync('vedabase:app-version'),
+
+  // Ctrl + / − / 0 pressed (main routes them here; see before-input-event).
+  onZoomKey: (handler) => {
+    const fn = (_e, dir) => handler(dir);
+    ipcRenderer.on('vedabase:zoom-key', fn);
+    return () => ipcRenderer.removeListener('vedabase:zoom-key', fn);
+  },
+  // Zoom the whole window: +1 / -1 a step, 0 back to 100%.
+  zoomWindow: (dir) => {
+    const lvl = dir === 0 ? 0 : Math.min(5, Math.max(-3, webFrame.getZoomLevel() + dir * 0.5));
+    webFrame.setZoomLevel(lvl);
+  },
 });
