@@ -18,6 +18,9 @@ interface DesktopUi {
   readerSettings: number;
   openReaderSettings: () => void;
   /** Full-screen reading: only the verse, Next and the search bar. */
+  /** Reading pages' bars (app bar + page toolbar) — hidden while reading. */
+  barsShown: boolean;
+  setBarsShown: (on: boolean | ((cur: boolean) => boolean)) => void;
   focusMode: boolean;
   setFocusMode: (on: boolean) => void;
 }
@@ -33,6 +36,11 @@ export const useDesktopUi = create<DesktopUi>((set, get) => ({
   },
   readerSettings: 0,
   openReaderSettings: () => set({ readerSettings: get().readerSettings + 1 }),
+  barsShown: true,
+  setBarsShown: (on) => {
+    const next = typeof on === 'function' ? on(get().barsShown) : on;
+    if (next !== get().barsShown) set({ barsShown: next });
+  },
   focusMode: false,
   setFocusMode: (on) => {
     if (get().focusMode === on) return;

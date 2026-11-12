@@ -18,6 +18,7 @@ import { Breadcrumbs, Btn, IconBtn, Segmented, Chip, Empty } from '@/desktop/ui'
 import { tipProps } from '@/desktop/ui';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
+import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
 import { bookCrumbs, flatChapters, chapterHref, verseHref, shortRef } from '@/desktop/bookNav';
 import { SANS, SERIF, READING_W, tints, web, alpha } from '@/desktop/theme';
 
@@ -102,6 +103,7 @@ export default function ChapterScreen() {
     visitDeps: [bookSlug, chapter, canto, book?.title, chapterName],
   });
   const scrollRef = useRef<ScrollView>(null);
+  const bar = useAutoHideBar();
   const restored = useRef<string | null>(null);
   useEffect(() => {
     if (!verses.length || restored.current === routeKey) return;
@@ -134,6 +136,7 @@ export default function ChapterScreen() {
     <View style={s.row}>
       {tocOpen && !focus ? <BookToc book={book} canto={canto} chapter={chapter} /> : null}
       <View style={{ flex: 1, minWidth: 0 }}>
+        <AutoHideBar bar={bar}>
         {focus ? (
           <FocusBar label={`${book.title} · ${reference}`}>
             <Segmented<'list' | 'read'>
@@ -156,10 +159,12 @@ export default function ChapterScreen() {
           <FullScreenBtn onBefore={() => setMode('read')} />
         </View>
         )}
+        </AutoHideBar>
 
-        <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }}>
+        <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }} {...({ onClick: bar.onTap } as any)}>
           <SideNav dir={-1} label={prev ? chLabel(prev) : undefined} onPress={prev && !focus ? () => goCh(prev) : undefined} />
-          <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={onScroll} scrollEventThrottle={64}>
+          <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={(e) => { onScroll(e); bar.onScrollY(e.nativeEvent.contentOffset.y); }} scrollEventThrottle={32}>
+            <BarSpacer bar={bar} />
             <View style={s.column} dataSet={{ vbPage: '1' }}>
               <Text style={[s.eyebrow, { color: colors.primary }]}>{book.title.toUpperCase()} · {reference.toUpperCase()}</Text>
               <Text style={[s.title, { color: colors.text }]}>{chapterName ?? reference}</Text>

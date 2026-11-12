@@ -12,6 +12,7 @@ import {
 import { Segmented, Chip } from '@/desktop/ui';
 import { SlokaDetail, SlokaList, LIST_LENGTH } from '@/desktop/SlokaDetail';
 import { FocusBar } from '@/desktop/FocusBar';
+import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
 import { useDesktopUi } from '@/desktop/uiStore';
 import { typingInField } from '@/desktop/uiStore';
 import { SANS, SERIF, tints, web, alpha } from '@/desktop/theme';
@@ -107,9 +108,10 @@ export default function SlokasScreen() {
   useEffect(() => { detailRef.current?.scrollTo({ y: 0, animated: false }); }, [sel, mode]);
 
   const focus = useDesktopUi((st) => st.focusMode);
+  const bar = useAutoHideBar();
   return (
-    <View style={[s.row, focus && { flexDirection: 'column' }]}>
-      {focus ? <FocusBar label={`Most Quoted Ślokas · ${sel + 1} / ${LIST_LENGTH[mode]}`} /> : null}
+    <View style={[s.row, focus && { flexDirection: 'column' }]} {...(focus ? ({ onClick: bar.onTap } as any) : {})}>
+      {focus ? <AutoHideBar bar={bar}><FocusBar label={`Most Quoted Ślokas · ${sel + 1} / ${LIST_LENGTH[mode]}`} /></AutoHideBar> : null}
       {focus ? null : <View style={[s.listPane, { backgroundColor: colors.surface, borderRightColor: colors.border }]}>
         <View style={[s.top, { borderBottomColor: colors.border }]}>
           <Text style={[s.h1, { color: colors.text }]}>Most Quoted Ślokas</Text>
@@ -166,7 +168,8 @@ export default function SlokasScreen() {
           })}
         </ScrollView>
       </View>}
-      <ScrollView ref={detailRef} style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={s.detail}>
+      <ScrollView ref={detailRef} style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={s.detail} onScroll={focus ? (e) => bar.onScrollY(e.nativeEvent.contentOffset.y) : undefined} scrollEventThrottle={32}>
+        {focus ? <BarSpacer bar={bar} /> : null}
         <View style={{ width: '100%', maxWidth: 720 }} dataSet={{ vbPage: '1' }}>
           <SlokaDetail list={mode} i={sel} onGo={(i) => select(mode, i)} />
         </View>

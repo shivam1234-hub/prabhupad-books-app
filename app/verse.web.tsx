@@ -24,6 +24,7 @@ import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, LinkedCitation, Anchor } from '@/desktop/ReaderVerse';
 import { Breadcrumbs, Btn, IconBtn, Empty } from '@/desktop/ui';
 import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
+import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
 import { tipProps } from '@/desktop/ui';
 import { TagDialog, NoteDialog } from '@/desktop/VerseDialogs';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
@@ -173,6 +174,7 @@ export default function VerseScreen() {
   const [active, setActive] = useState(0);
   const [count, setCount] = useState(0);
   const findInput = useRef<any>(null);
+  const bar = useAutoHideBar(findOpen);
   const closeFind = () => { setFindOpen(false); setFindQ(''); setActive(0); };
   useEffect(() => { setActive(0); }, [findQ]);
   useEffect(() => {
@@ -254,6 +256,7 @@ export default function VerseScreen() {
         <BookToc book={book} canto={canto} chapter={chapter} verse={verseNum} pageId={vsTitle ? verseNum : undefined} />
       ) : null}
       <View style={{ flex: 1, minWidth: 0 }}>
+        <AutoHideBar bar={bar}>
         {focus ? (
           <FocusBar label={book ? shortRef(book, chapter, displayNum, canto) : ''} />
         ) : (
@@ -296,10 +299,12 @@ export default function VerseScreen() {
             <IconBtn icon="✕" tip="Close (Esc)" onPress={closeFind} size={30} />
           </View>
         ) : null}
+        </AutoHideBar>
 
-        <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }}>
+        <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }} {...({ onClick: bar.onTap } as any)}>
           <SideArrow dir={-1} onPress={nav.prev && !focus ? () => go(nav.prev) : undefined} label={nav.prev?.label} />
-          <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={onScroll} scrollEventThrottle={64}>
+          <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={(e) => { onScroll(e); bar.onScrollY(e.nativeEvent.contentOffset.y); }} scrollEventThrottle={32}>
+            <BarSpacer bar={bar} />
             <View style={s.column} dataSet={{ vbPage: '1' }}>
               {loading ? (
                 <View style={s.center}><ActivityIndicator size="large" color={colors.primary} /><Text style={[s.muted, { color: colors.textMuted }]}>Loading…</Text></View>

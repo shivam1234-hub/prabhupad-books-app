@@ -19,7 +19,7 @@ import { DesktopHeader, historyGo } from '@/desktop/DesktopHeader';
 import { TooltipLayer } from '@/desktop/ui';
 import { applyDesktopCss } from '@/desktop/globalCss';
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
-import { SANS } from '@/desktop/theme';
+import { SANS, HEADER_H, web } from '@/desktop/theme';
 import { FOCUS_PATHS } from '@/desktop/FocusBar';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -111,9 +111,26 @@ function Shell() {
   useEffect(() => { applyDesktopCss(colors, isDark); }, [colors, isDark]);
   useGlobalShortcuts();
   const focus = useFocusMode();
+  const pathname = usePathname();
+  // On reading pages the app bar hides with the page's own bar (scroll down /
+  // click the page); every new page starts with the bars showing.
+  const reading = pathname === '/verse' || pathname === '/chapter';
+  const barsShown = useDesktopUi((s) => s.barsShown);
+  const setBarsShown = useDesktopUi((s) => s.setBarsShown);
+  useEffect(() => { setBarsShown(true); }, [pathname, setBarsShown]);
+  const hideHeader = reading && !barsShown;
   return (
     <View style={{ flex: 1, backgroundColor: colors.background, fontFamily: SANS } as any}>
-      {focus ? null : <DesktopHeader />}
+      {focus ? null : (
+        <View
+          style={[
+            { height: HEADER_H, zIndex: 70 },
+            web({ marginTop: hideHeader ? -HEADER_H : 0, transition: 'margin-top 220ms ease', pointerEvents: hideHeader ? 'none' : 'auto' }),
+          ]}
+        >
+          <DesktopHeader />
+        </View>
+      )}
       <View style={{ flex: 1, minHeight: 0 }}>
         <Slot />
       </View>
