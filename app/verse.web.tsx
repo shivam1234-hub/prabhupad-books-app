@@ -1,8 +1,8 @@
 // Desktop verse page, modelled on vedabase.io's verse view: breadcrumbs, a
 // centred reading column, big ‹ › arrows at the sides (and ← / → keys), and a
 // collapsible contents sidebar. Every action of the phone's verse screen is
-// here: save + tags, note, word meanings, find in page, wallpaper / today's
-// sloka, verse-reference previews and personalities.
+// here except the phone-only wallpaper: save + tags, note, word meanings, find in page,
+// verse-reference previews and personalities.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, Pressable } from 'react-native';
 import { useLocalSearchParams, useRouter, Href } from 'expo-router';
@@ -18,7 +18,6 @@ import { preloadDictionary, VerseRef } from '@/services/dictionary';
 import { getBook } from '@/constants/books';
 import { isFlatBook, isChapterPageBook, isVanisourceBook } from '@/services/vedabaseApi';
 import { updateReadingProgress } from '@/database/queries';
-import { setVerseAsWallpaperAndToday } from '@/utils/setVerseWallpaper';
 import { useTrackedRoute } from '@/hooks/useTrackedRoute';
 import { BookToc } from '@/desktop/BookToc';
 import { ReaderVerse, Display, LinkedCitation, Anchor } from '@/desktop/ReaderVerse';
@@ -65,7 +64,7 @@ function SideArrow({ dir, onPress, label }: { dir: -1 | 1; onPress?: () => void;
 export default function VerseScreen() {
   const params = useLocalSearchParams<{ book: string; chapter: string; verse: string; canto: string }>();
   const router = useRouter();
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const t = tints(colors);
   const settings = useSettingsStore((st) => st.settings);
   const tocOpen = useDesktopUi((st) => st.tocOpen);
@@ -86,7 +85,6 @@ export default function VerseScreen() {
   const myNote = getNote(verseId);
   const [showNote, setShowNote] = useState(false);
   const [showTags, setShowTags] = useState(false);
-  const [wp, setWp] = useState<'idle' | 'busy' | 'done' | 'error'>('idle');
 
   // ─── Titles ───
   const vsTitle = isVanisourceBook(bookSlug) ? book?.chapters?.find((c) => c.pageId === verseNum)?.title : undefined;
@@ -228,13 +226,6 @@ export default function VerseScreen() {
     if (!fav) addFavorite({ verseId, bookSlug: verse.bookSlug, canto: verse.canto, chapter, verse: verseNum });
     setShowTags(true);
   };
-  const handleWallpaper = async () => {
-    if (!verse || wp === 'busy') return;
-    setWp('busy');
-    try { await setVerseAsWallpaperAndToday(verse, isDark, colors.saffron); setWp('done'); }
-    catch { setWp('error'); }
-    setTimeout(() => setWp('idle'), 3000);
-  };
 
   const display: Display = {
     devanagari: settings.showDevanagari,
@@ -266,12 +257,6 @@ export default function VerseScreen() {
           <Btn size="sm" kind={fav ? 'secondary' : 'ghost'} icon={fav ? '★' : '☆'} label={fav ? 'Saved' : 'Save'} onPress={handleSave} tip={fav ? 'Edit tags or remove from Saved' : 'Save this verse'} />
           <Btn size="sm" kind={myNote ? 'secondary' : 'ghost'} icon="✎" label={myNote ? 'Note ●' : 'Note'} onPress={() => setShowNote(true)} tip="Write a personal note" />
           <Btn size="sm" kind={findOpen ? 'secondary' : 'ghost'} icon="⌕" label="Find" onPress={() => { setFindOpen((o) => !o); setTimeout(() => findInput.current?.focus(), 0); }} tip="Find in this page (Ctrl+F)" />
-          <Btn
-            size="sm" kind="ghost" icon="🪷" busy={wp === 'busy'}
-            label={wp === 'done' ? 'Saved ✓' : wp === 'error' ? 'Failed' : 'Wallpaper'}
-            onPress={handleWallpaper}
-            tip="Save this verse as a wallpaper image and pin it as today's śloka"
-          />
           <FullScreenBtn />
         </View>
         )}
