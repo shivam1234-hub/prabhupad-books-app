@@ -150,10 +150,24 @@ const SCHEMA = `
 // Matches CURRENT_PARSE_VERSION in src/database/queries.ts.
 const CURRENT_PARSE_VERSION = 3;
 
+// node-sqlite3-wasm locks a database by creating a "<file>.lock" directory and
+// removes it on close. If the app is killed (Task Manager, crash, power off,
+// an installer closing it) the directory stays and every later start fails
+// with "database is locked". main.js holds the single-instance lock before
+// calling open(), so no other Vedabase can be using the file: any lock still
+// on disk here is stale and safe to clear.
+function clearStaleLocks(file) {
+  for (const suffix of ['', '-journal', '-wal', '-shm']) {
+    try { fs.rmSync(`${file}${suffix}.lock`, { recursive: true, force: true }); } catch { /* not there / not ours */ }
+  }
+}
+
 function open(userDataDir) {
   if (db) return db;
   fs.mkdirSync(userDataDir, { recursive: true });
-  db = new Database(path.join(userDataDir, 'vedabase.db'));
+  const file = path.join(userDataDir, 'vedabase.db');
+  clearStaleLocks(file);
+  db = new Database(file);
   db.exec(SCHEMA);
   return db;
 }
