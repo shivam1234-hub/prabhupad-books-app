@@ -5,7 +5,19 @@
 // In Electron the main process has no CORS restriction, so the renderer asks
 // main to fetch and gets the raw HTML/JSON back over IPC — no proxy to start,
 // nothing extra to install on the user's machine.
-const { net } = require('electron');
+const fs = require('fs');
+const path = require('path');
+const { app, net } = require('electron');
+
+// Why a page "could not be reached" — status code or error — so a user's
+// %APPDATA%\Vedabase\network.log can tell a real outage from a blocked request.
+function logFailure(url, why) {
+  try {
+    const file = path.join(app.getPath('userData'), 'network.log');
+    try { if (fs.statSync(file).size > 512 * 1024) fs.rmSync(file); } catch { /* none yet */ }
+    fs.appendFileSync(file, `[${new Date().toISOString()}] ${url} -> ${why}\n`);
+  } catch { /* logging must never break fetching */ }
+}
 
 const TIMEOUT_MS = 20000;
 
@@ -43,9 +55,10 @@ async function fetchText(rawUrl) {
       redirect: 'follow',
       signal: controller.signal,
     });
-    if (!res.ok) return null;
+    if (!res.ok) { logFailure(url.toString(), `HTTP ${res.status}`); return null; }
     return await res.text();
-  } catch {
+  } catch (err) {
+    logFailure(url.toString(), err && err.name === 'AbortError' ? `timeout after ${TIMEOUT_MS / 1000}s` : String(err && err.message ? err.message : err));
     return null;
   } finally {
     clearTimeout(timer);

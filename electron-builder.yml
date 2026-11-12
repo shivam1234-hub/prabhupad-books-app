@@ -40,9 +40,13 @@ win:
       arch: [x64]
 
 nsis:
-  oneClick: false
+  # One-click, per-user: no "for all users / only me" question, so every new
+  # installer finds the existing copy and updates it in place (two different
+  # answers used to leave two Vedabase installs side by side). The offline
+  # library lives in %APPDATA%\Vedabase and is never touched by installing.
+  oneClick: true
   perMachine: false
-  allowToChangeInstallationDirectory: true
+  runAfterFinish: true
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Vedabase
