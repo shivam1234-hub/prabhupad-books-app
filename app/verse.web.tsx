@@ -273,7 +273,7 @@ export default function VerseScreen() {
         </AutoHideBar>
 
         {presenting && verse ? (
-          <Presentation verse={verse} mode={presentMode as 'sloka' | 'translation'} onTap={bar.onTap} />
+          <Presentation verse={verse} mode={presentMode as 'sloka' | 'translation'} label={heading} onTap={bar.onTap} />
         ) : (
         <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }} {...({ onClick: bar.onTap } as any)}>
           <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={(e) => { onScroll(e); bar.onScrollY(e.nativeEvent.contentOffset.y); }} scrollEventThrottle={32}>

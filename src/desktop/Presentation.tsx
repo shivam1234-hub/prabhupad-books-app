@@ -34,7 +34,7 @@ function fitSize(box: HTMLElement, content: HTMLElement): number {
   return Math.floor(lo * 2) / 2;
 }
 
-export function Presentation({ verse, mode, onTap }: { verse: Verse; mode: Exclude<PresentMode, 'full'>; onTap?: (e: any) => void }) {
+export function Presentation({ verse, mode, label, onTap }: { verse: Verse; mode: Exclude<PresentMode, 'full'>; label?: string; onTap?: (e: any) => void }) {
   const { colors } = useTheme();
   const zoom = useDesktopUi((st) => st.presentZoom);
   const zoomPresent = useDesktopUi((st) => st.zoomPresent);
@@ -60,7 +60,7 @@ export function Presentation({ verse, mode, onTap }: { verse: Verse; mode: Exclu
   }, []);
 
   // Refit when the verse, the mode or the screen size changes.
-  useLayoutEffect(() => { setFit(null); measure(); }, [verse.id, mode, showDeva, showTr, measure]);
+  useLayoutEffect(() => { setFit(null); measure(); }, [verse.id, mode, showDeva, showTr, label, measure]);
   useEffect(() => {
     const box = boxRef.current as HTMLElement | null;
     if (!box || typeof ResizeObserver === 'undefined') return;
@@ -96,6 +96,8 @@ export function Presentation({ verse, mode, onTap }: { verse: Verse; mode: Exclu
   return (
     <View ref={boxRef} style={[s.box, web({ overflow: 'auto' })]} {...({ onClick: onTap } as any)}>
       <View ref={contentRef} style={[s.content, { opacity: fit ? 1 : 0 }]}>
+        {/* The verse number (e.g. "Bg. 2.13"), part of the fitted text so it scales with it. */}
+        {label && !empty ? <Text selectable style={[s.ref, { color: colors.primary }]}>{label}</Text> : null}
         {empty ? (
           <Text style={[s.empty, { color: colors.textMuted }]}>
             {mode === 'sloka' ? 'This page has no śloka.' : 'This page has no translation.'}
@@ -167,6 +169,7 @@ const s = StyleSheet.create({
   deva: { fontFamily: SERIF, fontSize: '1.25em', lineHeight: '1.6em', textAlign: 'center' } as any,
   translit: { fontFamily: SERIF, fontStyle: 'italic', fontSize: '1em', lineHeight: '1.45em', textAlign: 'center' } as any,
   translation: { fontFamily: SERIF, fontWeight: '700', fontSize: '1em', lineHeight: '1.4em', textAlign: 'center' } as any,
+  ref: { fontFamily: SERIF, fontWeight: '700', fontSize: '0.55em', lineHeight: '1.3em', textAlign: 'center', marginBottom: '0.5em', letterSpacing: 0.5 } as any,
   gapAbove: { marginTop: '0.6em' } as any,
   empty: { fontFamily: SANS, fontSize: '0.5em', textAlign: 'center' } as any,
   controls: { flexDirection: 'row', alignItems: 'center', gap: 10 },
