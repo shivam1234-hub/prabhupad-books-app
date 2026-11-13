@@ -120,7 +120,7 @@ export function Presentation({ verse, mode, label, onTap }: { verse: Verse; mode
 
   return (
     <View ref={boxRef} style={[s.box, web({ overflow: 'auto' })]} {...({ onClick: onTap } as any)}>
-      <View ref={contentRef} style={[s.content, { opacity: fit ? 1 : 0 }]}>
+      <View ref={contentRef} style={[s.content, { opacity: fit ? 1 : 0 }, web({ alignItems: 'safe center' })]}>
         {/* The verse number (e.g. "Bg. 2.13"), part of the fitted text so it scales with it. */}
         {label && !empty ? <Text selectable style={[s.ref, { color: colors.primary }]}>{label}</Text> : null}
         {empty ? (
@@ -191,7 +191,10 @@ const s = StyleSheet.create({
   // A fixed margin on every side (in screen units, so it is the same on any
   // display) — the text never touches or runs off an edge.
   box: { flex: 1, minHeight: 0, alignSelf: 'stretch', paddingHorizontal: 'max(32px, 6vw)', paddingVertical: 'max(32px, 7vh)' } as any,
-  // margin auto centres the text both ways while still letting it scroll when zoomed past the screen.
+  // margin auto centres the text both ways while still letting it scroll when
+  // zoomed past the screen. 'safe center' (set on web): a line zoomed wider
+  // than the screen overflows to the right, where it can be scrolled to —
+  // plain centring spilled it off both edges, out of reach on the left.
   content: { marginVertical: 'auto', alignSelf: 'stretch', alignItems: 'center', flexShrink: 0 } as any,
   deva: { fontFamily: SERIF, fontSize: '1.25em', lineHeight: '1.6em', textAlign: 'center' } as any,
   translit: { fontFamily: SERIF, fontStyle: 'italic', fontSize: '1em', lineHeight: '1.45em', textAlign: 'center' } as any,
