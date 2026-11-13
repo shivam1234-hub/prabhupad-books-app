@@ -15,14 +15,28 @@ import { SANS, SERIF, web } from './theme';
 const MIN_PX = 12;
 const MAX_PX = 260;
 
+// Keep the text a little inside the room it measures into, so rounding,
+// glyph overhangs (italic descenders, diacritics below the line) and a font
+// finishing loading a moment later can never push the last line off-screen.
+const SAFETY = 0.96;
+
 /** The largest base font size (px) at which `content` fits inside `box`. */
 function fitSize(box: HTMLElement, content: HTMLElement): number {
   const cs = getComputedStyle(box);
-  const room = box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+  const roomH = (box.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom)) * SAFETY;
+  const roomW = (box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight)) * SAFETY;
   const fits = (px: number) => {
     content.style.fontSize = `${px}px`;
-    // Height: the whole text on screen. Width: no word wider than the screen.
-    return content.scrollHeight <= room && content.scrollWidth <= content.clientWidth + 1;
+    // Height: the whole text on screen.
+    if (content.scrollHeight > roomH) return false;
+    // Width: an unwrapped śloka line must fit inside the margins, and no word
+    // of a wrapped paragraph may stick out of its box. (Each child's own size,
+    // since centred overflow spills to both sides.)
+    for (const el of Array.from(content.children) as HTMLElement[]) {
+      if (el.scrollWidth > el.clientWidth + 1) return false;
+      if (getComputedStyle(el).whiteSpace === 'nowrap' && el.offsetWidth > roomW) return false;
+    }
+    return true;
   };
   let lo = MIN_PX;
   let hi = MAX_PX;
@@ -67,15 +81,20 @@ export function Presentation({ verse, mode, label, onTap }: { verse: Verse; mode
     let raf = 0;
     const ro = new ResizeObserver(() => { cancelAnimationFrame(raf); raf = requestAnimationFrame(measure); });
     ro.observe(box);
-    // Web fonts arriving late change the text's size.
-    (document as any).fonts?.ready?.then?.(() => measure());
-    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+    // Web fonts arriving late (e.g. the italic face the first time a śloka
+    // shows) change the text's size: refit whenever a font finishes loading.
+    const fonts = (document as any).fonts;
+    const onFonts = () => { cancelAnimationFrame(raf); raf = requestAnimationFrame(measure); };
+    fonts?.ready?.then?.(onFonts);
+    fonts?.addEventListener?.('loadingdone', onFonts);
+    window.addEventListener('resize', onFonts);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); fonts?.removeEventListener?.('loadingdone', onFonts); window.removeEventListener('resize', onFonts); };
   }, [measure]);
 
   // Apply fit × zoom after every render (React doesn't own the font size).
   useLayoutEffect(() => {
     const content = contentRef.current as HTMLElement | null;
-    if (content && fit) content.style.fontSize = `${Math.round(fit * zoom * 2) / 2}px`;
+    if (content && fit) content.style.fontSize = `${Math.floor(fit * zoom * 2) / 2}px`;
   });
 
   // Ctrl + mouse wheel zooms the presentation (not the whole window).
@@ -163,9 +182,11 @@ export function PresentControls() {
 }
 
 const s = StyleSheet.create({
-  box: { flex: 1, minHeight: 0, paddingHorizontal: '5%', paddingVertical: '4%' } as any,
-  // margin auto centres the text while still letting it scroll when zoomed past the screen.
-  content: { marginVertical: 'auto', alignSelf: 'stretch', alignItems: 'center' } as any,
+  // A fixed margin on every side (in screen units, so it is the same on any
+  // display) — the text never touches or runs off an edge.
+  box: { flex: 1, minHeight: 0, alignSelf: 'stretch', paddingHorizontal: 'max(32px, 6vw)', paddingVertical: 'max(32px, 7vh)' } as any,
+  // margin auto centres the text both ways while still letting it scroll when zoomed past the screen.
+  content: { marginVertical: 'auto', alignSelf: 'stretch', alignItems: 'center', flexShrink: 0 } as any,
   deva: { fontFamily: SERIF, fontSize: '1.25em', lineHeight: '1.6em', textAlign: 'center' } as any,
   translit: { fontFamily: SERIF, fontStyle: 'italic', fontSize: '1em', lineHeight: '1.45em', textAlign: 'center' } as any,
   translation: { fontFamily: SERIF, fontWeight: '700', fontSize: '1em', lineHeight: '1.4em', textAlign: 'center' } as any,

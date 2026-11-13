@@ -31,7 +31,10 @@ async function run(win, { plan, base }) {
 
   for (const shot of shots) {
     try {
+      if (win.isFullScreen()) win.setFullScreen(false);
+      if (win.isMaximized()) win.unmaximize();
       win.setContentSize(shot.w || 1440, shot.h || 900);
+      win.webContents.setZoomFactor(shot.zoom || 1);
       if (shot.theme) {
         await win.webContents.executeJavaScript(`(() => {
           const k = 'vedabase_settings';

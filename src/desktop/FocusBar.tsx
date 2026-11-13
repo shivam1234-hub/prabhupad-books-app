@@ -6,7 +6,7 @@ import { useTheme } from '@/hooks/useTheme';
 import { SearchBox } from './DesktopHeader';
 import { Btn, IconBtn } from './ui';
 import { useDesktopUi } from './uiStore';
-import { SERIF } from './theme';
+import { SERIF, web } from './theme';
 
 /** Pages that offer full-screen reading. */
 export const FOCUS_PATHS = ['/verse', '/chapter', '/slokas'];
@@ -15,12 +15,18 @@ export function FocusBar({ label, children, searchWidth = 520 }: { label?: strin
   const { colors } = useTheme();
   const setFocusMode = useDesktopUi((st) => st.setFocusMode);
   return (
+    // Three columns in one flex row, so they can never overlap: the two side
+    // columns share the free space equally (which keeps the search centred),
+    // the right one never shrinks below its controls, and the label on the
+    // left gives way (truncates) first, then the search box narrows.
     <View style={[s.bar, { borderBottomColor: colors.border, backgroundColor: colors.background }]}>
-      <Text style={[s.ref, { color: colors.textMuted }]} numberOfLines={1}>{label ?? ''}</Text>
+      <View style={s.left}>
+        <Text style={[s.ref, { color: colors.textMuted }]} numberOfLines={1}>{label ?? ''}</Text>
+      </View>
       <SearchBox width={searchWidth} />
-      <View style={s.right}>
+      <View style={[s.right, web({ minWidth: 'max-content' })]}>
         {children}
-        <Btn size="sm" kind="ghost" icon="✕" label="Exit full screen" onPress={() => setFocusMode(false)} tip="Back to the normal view  (Esc or F)" />
+        <Btn size="sm" kind="ghost" icon="✕" label="Exit" onPress={() => setFocusMode(false)} tip="Exit full screen — back to the normal view  (Esc or F)" />
       </View>
     </View>
   );
@@ -32,7 +38,8 @@ export function FullScreenBtn({ onBefore }: { onBefore?: () => void }) {
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 16, height: 60, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 50 },
-  ref: { position: 'absolute', left: 20, fontFamily: SERIF, fontSize: 15, fontWeight: '600', maxWidth: 300 },
-  right: { position: 'absolute', right: 16, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  bar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, gap: 16, height: 60, borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 50 },
+  left: { flexGrow: 1, flexShrink: 1, flexBasis: 0, minWidth: 0 },
+  ref: { fontFamily: SERIF, fontSize: 15, fontWeight: '600' },
+  right: { flexGrow: 1, flexShrink: 0, flexBasis: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8 },
 });
