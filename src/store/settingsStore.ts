@@ -22,6 +22,8 @@ const defaultSettings: AppSettings = {
   offlineMode: false,
   downloadConcurrency: 8,
   tourSeen: false,
+  translateLang: null,
+  autoTranslate: false,
 };
 
 interface SettingsState {
@@ -41,7 +43,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       const stored = await SecureStore.getItemAsync(SETTINGS_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        set({ settings: { ...defaultSettings, ...parsed }, loaded: true });
+        set({ settings: { ...defaultSettings, ...parsed, language: 'en' }, loaded: true });
       } else {
         set({ loaded: true });
       }

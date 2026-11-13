@@ -27,6 +27,12 @@ import { isFlatBook, isChapterPageBook, isVanisourceBook } from '@/services/veda
 import { updateReadingProgress } from '@/database/queries';
 import { setVerseAsWallpaperAndToday } from '@/utils/setVerseWallpaper';
 import { useTrackedRoute } from '@/hooks/useTrackedRoute';
+import { useSettingsStore } from '@/store/settingsStore';
+import {
+  isTranslationAvailable, isModelDownloaded, downloadModel, translateVerse, languageName,
+  TranslateLang, TranslatedVerse,
+} from '@/services/translate';
+import { TranslateLanguageSheet } from '@/components/TranslateLanguageSheet';
 
 function NoteModal({ visible, initial, onClose, onSave }: {
   visible: boolean; initial: string; onClose: () => void; onSave: (t: string) => void;
@@ -90,6 +96,82 @@ export default function VerseScreen() {
   } = useFavoritesStore();
 
   const [showNote, setShowNote] = useState(false);
+
+  // Machine translation of the translation and purport (Android). While on,
+  // every verse opens translated, until the reader shows the original again.
+  const canTranslate = isTranslationAvailable();
+  const translateLang = useSettingsStore(s => s.settings.translateLang);
+  const autoTranslate = useSettingsStore(s => s.settings.autoTranslate);
+  const updateSetting = useSettingsStore(s => s.updateSetting);
+  const [translated, setTranslated] = useState<TranslatedVerse | null>(null);
+  const [trStatus, setTrStatus] = useState<'idle' | 'downloading' | 'translating' | 'error'>('idle');
+  const [pickLang, setPickLang] = useState(false);
+  const [trTick, setTrTick] = useState(0);
+  const trOn = canTranslate && autoTranslate && !!translateLang;
+
+  const turnOnTranslation = useCallback(async (lang: TranslateLang) => {
+    setPickLang(false);
+    const name = languageName(lang);
+    const start = () => {
+      updateSetting('translateLang', lang);
+      updateSetting('autoTranslate', true);
+    };
+    let have = false;
+    try { have = await isModelDownloaded(lang); } catch {}
+    if (have) { start(); return; }
+    Alert.alert(
+      `Download ${name.english} translation?`,
+      `About 30 MB, once. After that verses translate into ${name.native} on your phone, even offline.\n\n` +
+        'This is a machine translation by Google ML Kit, not the Bhaktivedanta Book Trust’s translation, and it can be wrong.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Download',
+          onPress: async () => {
+            setTrStatus('downloading');
+            try {
+              await downloadModel(lang);
+              start();
+            } catch {
+              setTrStatus('idle');
+              Alert.alert('Download failed', 'Check your internet connection and try again.');
+            }
+          },
+        },
+      ],
+    );
+  }, [updateSetting]);
+
+  useEffect(() => {
+    setTranslated(null);
+    if (!trOn || !verse || (!verse.translation && !verse.purport)) {
+      setTrStatus(s => (s === 'downloading' ? s : 'idle'));
+      return;
+    }
+    let cancelled = false;
+    setTrStatus('translating');
+    (async () => {
+      try {
+        // The model can be gone (cleared app data): ask again rather than fail.
+        if (!(await isModelDownloaded(translateLang!))) {
+          if (!cancelled) { setTrStatus('idle'); updateSetting('autoTranslate', false); }
+          return;
+        }
+        const t = await translateVerse(verse, translateLang!);
+        if (!cancelled) { setTranslated(t); setTrStatus('idle'); }
+      } catch {
+        if (!cancelled) setTrStatus('error');
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [trOn, translateLang, verse, trTick]);
+
+  const toggleTranslate = () => {
+    if (trStatus === 'downloading') return;
+    if (trOn) updateSetting('autoTranslate', false);
+    else if (translateLang) turnOnTranslation(translateLang);
+    else setPickLang(true);
+  };
   const [showTags, setShowTags] = useState(false);
 
   // Word meanings are off until the reader turns them on for this page, so a
@@ -340,6 +422,14 @@ export default function VerseScreen() {
       color: meanings === 'on' ? colors.primary : colors.textSecondary,
       onPress: toggleMeanings,
     },
+    ...(canTranslate ? [{
+      key: 'translate',
+      label: trStatus === 'downloading' ? 'Downloading…'
+        : trOn ? `${languageName(translateLang!).native} ✓` : 'Translate',
+      icon: '🌐',
+      color: trOn ? colors.primary : colors.textSecondary,
+      onPress: toggleTranslate,
+    }] : []),
     { key: 'find', label: 'Find', icon: '⌕', color: findOpen ? colors.primary : colors.textSecondary, onPress: () => setFindOpen(o => !o) },
     {
       key: 'wallpaper',
@@ -357,7 +447,8 @@ export default function VerseScreen() {
         <View style={[styles.toolbar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
           {toolbar.map(({ key, label, icon, color, onPress }) => (
             <Pressable key={key} onPress={onPress} hitSlop={8} style={styles.toolBtn}>
-              {key === 'meanings' && meanings === 'loading'
+              {(key === 'meanings' && meanings === 'loading') ||
+               (key === 'translate' && (trStatus === 'downloading' || trStatus === 'translating'))
                 ? <ActivityIndicator size="small" color={colors.primary} style={styles.toolSpinner} />
                 : <Text style={[styles.toolIcon, { color }]}>{icon}</Text>}
               <Text style={[styles.toolLabel, { color: colors.textMuted }]}>{label}</Text>
@@ -435,8 +526,34 @@ export default function VerseScreen() {
                 </Pressable>
               )}
 
+              {trOn && (
+                <View style={[styles.trBanner, { backgroundColor: colors.surfaceElevated, borderColor: colors.border }]}>
+                  <Text style={[styles.trBannerText, { color: colors.textSecondary }]}>
+                    {trStatus === 'translating'
+                      ? `Translating into ${languageName(translateLang!).native}…`
+                      : trStatus === 'error'
+                        ? 'Couldn’t translate this verse.'
+                        : `🌐 Machine translation into ${languageName(translateLang!).native} by Google ML Kit — not the BBT translation, and it can be wrong. The Sanskrit and word-for-word are unchanged.`}
+                  </Text>
+                  <View style={styles.trBannerActions}>
+                    {trStatus === 'error' && (
+                      <Pressable onPress={() => setTrTick(t => t + 1)} hitSlop={8}>
+                        <Text style={[styles.trBannerBtn, { color: colors.primary }]}>Retry</Text>
+                      </Pressable>
+                    )}
+                    <Pressable onPress={() => updateSetting('autoTranslate', false)} hitSlop={8}>
+                      <Text style={[styles.trBannerBtn, { color: colors.primary }]}>Show original</Text>
+                    </Pressable>
+                    <Pressable onPress={() => setPickLang(true)} hitSlop={8}>
+                      <Text style={[styles.trBannerBtn, { color: colors.primary }]}>Change language</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              )}
+
               <VerseContent
                 verse={verse}
+                translated={trOn ? translated ?? undefined : undefined}
                 query={findOpen ? findQuery : ''}
                 activeMatch={activeMatch}
                 onMatchSectionsChange={setMatchSections}
@@ -513,6 +630,13 @@ export default function VerseScreen() {
         onRemove={() => { setShowTags(false); removeFavorite(verseId); }}
       />
 
+      <TranslateLanguageSheet
+        visible={pickLang}
+        current={translateLang}
+        onSelect={turnOnTranslation}
+        onClose={() => setPickLang(false)}
+      />
+
       <NoteModal
         visible={showNote}
         initial={myNote?.content ?? ''}
@@ -554,6 +678,16 @@ const styles = StyleSheet.create({
   retryBtn: { borderRadius: 10, paddingHorizontal: 24, paddingVertical: 10 },
   retryText: { color: '#FFF', fontWeight: '700' },
   scroll: { padding: 16, gap: 16, paddingBottom: 16 },
+  trBanner: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 12,
+    padding: 12,
+    gap: 8,
+    marginBottom: 10,
+  },
+  trBannerText: { fontSize: 12.5, lineHeight: 18, fontStyle: 'italic' },
+  trBannerActions: { flexDirection: 'row', gap: 18, flexWrap: 'wrap' },
+  trBannerBtn: { fontSize: 13, fontWeight: '700' },
   notePreview: {
     borderRadius: 12, borderWidth: 1, padding: 12, gap: 4,
   },

@@ -1,6 +1,6 @@
 {
   "name": "prabhupad-books-app",
-  "version": "1.10.0",
+  "version": "1.11.0",
   "main": "index.ts",
   "dependencies": {
     "@expo/metro-runtime": "~56.0.15",
@@ -11,6 +11,7 @@
     "babel-preset-expo": "^56.0.15",
     "date-fns": "^4.4.0",
     "download-service": "file:./modules/download-service",
+    "on-device-translate": "file:./modules/on-device-translate",
     "expo": "~56.0.11",
     "expo-asset": "56.0.17",
     "expo-av": "^16.0.9-canary-20260119-17896bf",

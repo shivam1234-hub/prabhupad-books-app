@@ -4,8 +4,10 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
-import { useSettingsStore, fontSizeLabels, languageLabels } from '@/store/settingsStore';
-import { FontSize, Language, ThemeMode } from '@/types';
+import { useSettingsStore, fontSizeLabels } from '@/store/settingsStore';
+import { FontSize, ThemeMode, TranslateLang } from '@/types';
+import { isTranslationAvailable, languageName } from '@/services/translate';
+import { TranslateLanguageSheet } from '@/components/TranslateLanguageSheet';
 import { scheduleDailySlokaNotification, requestNotificationPermissions } from '@/services/notifications';
 
 function Row({ label, right, onPress, muted }: {
@@ -66,6 +68,7 @@ export default function SettingsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const { settings, updateSetting, resetSettings } = useSettingsStore();
+  const [pickLang, setPickLang] = useState(false);
 
   const handleSlokaTime = () => {
     Alert.alert('Notification Time', 'Choose a time for your daily sloka notification', [
@@ -115,11 +118,25 @@ export default function SettingsScreen() {
           options={Object.entries(fontSizeLabels).map(([v, label]) => ({ value: v, label }))}
           onSelect={(v) => updateSetting('fontSize', v as FontSize)}
         />
-        <PickerRow
-          label="Language"
-          value={settings.language}
-          options={Object.entries(languageLabels).map(([v, label]) => ({ value: v, label }))}
-          onSelect={(v) => updateSetting('language', v as Language)}
+        {/* The books are read in Śrīla Prabhupāda's English; this machine-
+            translates the translation and purport (🌐 on a verse). */}
+        {isTranslationAvailable() && (
+          <Row
+            label="Translate verses into"
+            muted="Machine translation, not BBT’s"
+            right={
+              <Text style={[styles.rowValue, { color: colors.primary }]}>
+                {settings.translateLang ? languageName(settings.translateLang).native : 'Choose'}
+              </Text>
+            }
+            onPress={() => setPickLang(true)}
+          />
+        )}
+        <TranslateLanguageSheet
+          visible={pickLang}
+          current={settings.translateLang}
+          onSelect={(v: TranslateLang) => { setPickLang(false); updateSetting('translateLang', v); }}
+          onClose={() => setPickLang(false)}
         />
       </Section>
 

@@ -1,0 +1,11 @@
+{
+  "name": "on-device-translate",
+  "version": "1.0.0",
+  "description": "English to Indian-language machine translation on the device (Google ML Kit)",
+  "main": "src/index",
+  "types": "src/index",
+  "peerDependencies": {
+    "expo": "*",
+    "react-native": "*"
+  }
+}

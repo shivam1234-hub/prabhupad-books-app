@@ -1,0 +1,23 @@
+plugins {
+  id 'com.android.library'
+  id 'kotlin-android'
+  id 'expo-module-gradle-plugin'
+}
+
+expoModule {
+  canBePublished false
+}
+
+android {
+  namespace 'expo.modules.ondevicetranslate'
+  compileSdk 35
+  defaultConfig {
+    minSdk 24
+  }
+}
+
+dependencies {
+  // On-device translation. Language models (~30 MB each) are downloaded on
+  // first use, not bundled in the APK.
+  implementation 'com.google.mlkit:translate:17.0.3'
+}

@@ -120,6 +120,9 @@ export type ThemeMode = 'light' | 'dark' | 'system' | 'vedabase';
 export type FontSize = 'small' | 'medium' | 'large' | 'xlarge';
 export type Language = 'en' | 'hi' | 'bn' | 'gu' | 'te' | 'mr' | 'ta' | 'de' | 'fr' | 'es' | 'pt' | 'ru';
 
+/** Indian languages the reader can machine-translate a verse into. */
+export type TranslateLang = 'hi' | 'bn' | 'kn' | 'mr' | 'gu' | 'ta' | 'te' | 'ur';
+
 export interface AppSettings {
   themeMode: ThemeMode;
   fontSize: FontSize;
@@ -142,6 +145,10 @@ export interface AppSettings {
   downloadConcurrency: number;
   // First-launch feature tour has been shown (FeatureTour).
   tourSeen: boolean;
+  // Machine translation of the translation and purport (Android, ML Kit):
+  // the chosen language, and whether verses open translated.
+  translateLang: TranslateLang | null;
+  autoTranslate: boolean;
 }
 
 export interface DailySloka {

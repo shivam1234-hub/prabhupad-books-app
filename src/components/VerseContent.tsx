@@ -315,12 +315,15 @@ export interface VerseContentSearchProps {
   onCitationPress?: CitationPress;
   /** Tap on a less familiar personality's name in the translation or purport. */
   onPersonalityPress?: PersonalityPress;
+  /** Machine translation of the translation and purport, shown in their place
+   * as plain text (no word meanings or links — those are for the English). */
+  translated?: { translation?: string; purport?: string };
 }
 
 export function VerseContent({
   verse, query = '', activeMatch = 0, display,
   onMatchSectionsChange, onSectionLayout, onContainerLayout, onWordLookup, onLookupReady, onFindLocator,
-  onCitationPress, onPersonalityPress,
+  onCitationPress, onPersonalityPress, translated,
 }: { verse: Verse; display?: VerseDisplay } & VerseContentSearchProps) {
   const { colors, isDark } = useTheme();
   const settings = useSettingsStore(s => s.settings);
@@ -338,15 +341,19 @@ export function VerseContent({
 
   // Searchable sections in document order. `text` is the plain string matched.
   const sections = useMemo(() => {
-    const list: { key: string; label: string; text: string; style: any; defaultExpanded: boolean }[] = [];
+    const list: { key: string; label: string; text: string; style: any; defaultExpanded: boolean; machine?: boolean }[] = [];
     if (verse.devanagari) list.push({ key: 'devanagari', label: 'Sanskrit Text', text: verse.devanagari, style: [styles.devanagari, { color: colors.primary, fontSize: px(base + 6), lineHeight: px(46) }], defaultExpanded: settings.showDevanagari });
     if (verse.transliteration) list.push({ key: 'transliteration', label: 'Transliteration', text: verse.transliteration, style: [styles.transliteration, { color: colors.textSecondary, fontSize: px(base - 1), lineHeight: px(28) }], defaultExpanded: settings.showTransliteration });
     if (verse.synonyms) list.push({ key: 'synonyms', label: 'Word-for-Word', text: verse.synonyms, style: [styles.synonyms, { color: colors.textSecondary, fontSize: px(base - 1), lineHeight: px(26) }], defaultExpanded: settings.showSynonyms });
     if (verse.translation) list.push({ key: 'translation', label: 'Translation', text: verse.translation, style: [styles.translation, { color: colors.text, fontSize: px(base), lineHeight: px(28) }], defaultExpanded: settings.showTranslation });
     if (verse.purport) list.push({ key: 'purport', label: 'Purport', text: verse.purport, style: [styles.purport, { color: colors.textSecondary, fontSize: px(base), lineHeight: px(28) }], defaultExpanded: settings.showPurport });
+    for (const s of list) {
+      const t = (s.key === 'translation' || s.key === 'purport') && translated?.[s.key];
+      if (t) Object.assign(s, { text: t, machine: true });
+    }
     // Advanced view: keep only the sections the reader has toggled on.
     return display ? list.filter((s) => display[s.key as keyof VerseDisplay]) : list;
-  }, [verse, settings, colors, base, sc, display]);
+  }, [verse, settings, colors, base, sc, display, translated]);
 
   // Compute match → section mapping and per-section base index for highlighting.
   const { matchSections, baseIndexByKey } = useMemo(() => {
@@ -425,7 +432,7 @@ export function VerseContent({
     const out: { key: string; paras: string[]; start: number }[] = [];
     const words: number[] = [];
     for (const s of sections) {
-      if (s.key === 'devanagari') continue;
+      if (s.key === 'devanagari' || s.machine) continue;
       const paras = s.key === 'synonyms' ? [s.text] : s.text.split(/\n{2,}/);
       out.push({ key: s.key, paras, start: words.length });
       for (const p of paras) words.push(wordCount(p));
@@ -510,7 +517,7 @@ export function VerseContent({
                 </Text>
               ))}
             </Text>
-          ) : !searching && s.key !== 'devanagari' && (onWordLookup || linkSegs[s.key]) ? (
+          ) : !searching && !s.machine && s.key !== 'devanagari' && (onWordLookup || linkSegs[s.key]) ? (
             <View style={{ gap: StyleSheet.flatten(s.style).lineHeight }}>
               {units.byKey[s.key].paras.map((p, i) => (
                 <Paragraph
