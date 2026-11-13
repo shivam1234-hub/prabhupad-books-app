@@ -52,6 +52,7 @@ async function getHtml(url: string): Promise<string | null> {
   }
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (res.status === 404 || res.status === 410) return ''; // reached, but no such page
     if (!res.ok) return null;
     return await res.text();
   } catch {
@@ -283,16 +284,20 @@ export async function fetchAndCacheBook(
       total += verseIds.length - verseCount;
     }
     let chapterNetworkError = !listOk;
+    let chapterFailed = false;
     let chapterStopped = false;
     await Promise.all(verseIds.map((vid) => limit(async () => {
       if (stop()) { chapterStopped = true; return; }
       const { verse, networkError } = await fetchVerseDetailed(bookSlug, chapter, vid, cantoPart, language);
       if (verse) success++;
-      else { failed++; if (networkError) chapterNetworkError = true; }
+      else { failed++; chapterFailed = true; if (networkError) chapterNetworkError = true; }
       onProgress?.(++done, total);
       if (done % 25 === 0) await setDownloadStatus(bookSlug, 'downloading', total, success);
     })));
-    if (!chapterNetworkError && !chapterStopped) {
+    // Only a chapter with every text saved counts as done. One that missed a
+    // text (for any reason) is tried again on Resume — otherwise Resume
+    // skipped it and wrongly reported the book as fully offline.
+    if (!chapterNetworkError && !chapterFailed && !chapterStopped) {
       await markDownloadedChapter(bookSlug, language, key, verseIds.length);
     }
     await setDownloadStatus(bookSlug, 'downloading', total, success);

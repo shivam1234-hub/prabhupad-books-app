@@ -167,6 +167,8 @@ export default function VerseScreen() {
   const verseId = verse?.id ?? '';
   const fav = isFavorite(verseId);
   const myNote = getNote(verseId);
+  // A note written in an earlier session isn't in the store until read.
+  useEffect(() => { if (verseId) useFavoritesStore.getState().loadNoteFor(verseId); }, [verseId]);
 
   useEffect(() => {
     if (verse) {

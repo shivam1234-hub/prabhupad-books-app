@@ -70,7 +70,13 @@ export function Presentation({ verse, mode, label, onTap }: { verse: Verse; mode
     const box = boxRef.current as HTMLElement | null;
     const content = contentRef.current as HTMLElement | null;
     if (!box || !content || !box.clientHeight) return;
-    setFit(fitSize(box, content));
+    const f = fitSize(box, content);
+    // The search above leaves the text at whatever size it tried last (often
+    // one that did NOT fit). Put the final size back right away: if the fit
+    // came out the same as before, setFit won't re-render, and the text
+    // would otherwise stay too big (cut off) or lose the user's zoom.
+    content.style.fontSize = `${Math.floor(f * useDesktopUi.getState().presentZoom * 2) / 2}px`;
+    setFit(f);
   }, []);
 
   // Refit when the verse, the mode or the screen size changes.

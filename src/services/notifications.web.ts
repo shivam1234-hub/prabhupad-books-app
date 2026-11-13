@@ -33,7 +33,10 @@ export async function scheduleDailySlokaNotification(hour: number, minute: numbe
 export async function showDailySlokaNotification(reference: string, translation: string, _verseId: string): Promise<void> {
   const bridge = getBridge();
   if (bridge) {
-    const snippet = translation.length > 160 ? translation.slice(0, 160) + '…' : translation;
+    // "Show the verse in the notification" off: only the reference.
+    const showVerse = useSettingsStore.getState().settings.lockScreenEnabled !== false;
+    const snippet = !showVerse ? 'Open Vedabase to read today’s śloka.'
+      : translation.length > 160 ? translation.slice(0, 160) + '…' : translation;
     try { await bridge.notify(`\u{1F337} ${reference}`, snippet); } catch { /* non-fatal */ }
     return;
   }
@@ -53,8 +56,11 @@ export async function pickDailySloka(): Promise<{
   const existing = await getDailySloka(today);
   if (existing) return existing;
 
-  const BG_BOOKS = ['bg', 'noi', 'iso'];
-  const availableBooks = BOOKS.filter((b) => BG_BOOKS.includes(b.slug));
+  // Settings → Source book: one book, or (All) the verse books.
+  const choice = useSettingsStore.getState().settings.slokaOfDayBook;
+  const SOURCE_BOOKS = choice && choice !== 'all' ? [choice as string] : ['bg', 'sb', 'noi', 'iso'];
+  const availableBooks = BOOKS.filter((b) => SOURCE_BOOKS.includes(b.slug));
+  if (!availableBooks.length) return null;
   const randomBook = availableBooks[Math.floor(Math.random() * availableBooks.length)];
 
   let canto: number | undefined;
@@ -99,7 +105,10 @@ export async function registerBackgroundTask(): Promise<void> {
     try {
       const sloka = await pickDailySloka();
       if (!sloka) return;
-      const verse = await fetchVerse(sloka.bookSlug, sloka.chapter, sloka.verse, sloka.canto);
+      // Chapter lengths for some books are estimates: if the picked number
+      // doesn't exist, use the chapter's first text rather than skip the day.
+      const verse = (await fetchVerse(sloka.bookSlug, sloka.chapter, sloka.verse, sloka.canto))
+        ?? (sloka.verse !== '1' ? await fetchVerse(sloka.bookSlug, sloka.chapter, '1', sloka.canto) : null);
       if (!verse?.translation) return;
       const book = BOOKS.find((b) => b.slug === sloka.bookSlug);
       const ref = sloka.canto

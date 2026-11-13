@@ -40,7 +40,8 @@ function Row({ label, hint, children, last }: { label: string; hint?: string; ch
 }
 
 const TIMES = [['06:00', '6 AM'], ['08:00', '8 AM'], ['12:00', 'Noon'], ['18:00', '6 PM'], ['21:00', '9 PM']] as const;
-const SOURCES = [['all', 'All books'], ['bg', 'Bhagavad-gītā'], ['sb', 'Śrīmad-Bhāgavatam'], ['noi', 'Nectar of Instruction'], ['iso', 'Śrī Īśopaniṣad']] as const;
+// Short labels: five full titles don't fit the settings card on a laptop.
+const SOURCES = [['all', 'All'], ['bg', 'Bhagavad-gītā'], ['sb', 'Bhāgavatam'], ['noi', 'Nectar of Instr.'], ['iso', 'Īśopaniṣad']] as const;
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -177,7 +178,13 @@ export default function SettingsScreen() {
           </Pressable>
         ))}
       </Popover>
-      <ConfirmDialog open={confirmReset} title="Reset all settings?" message="Theme, text size, verse sections and daily śloka go back to their defaults. Saved verses, notes and downloads are not affected." confirmLabel="Reset" destructive onConfirm={resetSettings} onClose={() => setConfirmReset(false)} />
+      <ConfirmDialog open={confirmReset} title="Reset all settings?" message="Theme, text size, verse sections and daily śloka go back to their defaults. Saved verses, notes and downloads are not affected." confirmLabel="Reset" destructive onConfirm={async () => {
+        await resetSettings();
+        // The daily notification timer lives in the main process: re-arm it
+        // with the default time / on-off, or it keeps the old schedule.
+        const st = useSettingsStore.getState().settings;
+        arm(st.slokaOfDayTime, st.slokaOfDayEnabled);
+      }} onClose={() => setConfirmReset(false)} />
     </Page>
   );
 }

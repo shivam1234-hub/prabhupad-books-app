@@ -12,7 +12,7 @@ import {
 import { Segmented, Chip } from '@/desktop/ui';
 import { SlokaDetail, SlokaList, LIST_LENGTH } from '@/desktop/SlokaDetail';
 import { FocusBar } from '@/desktop/FocusBar';
-import { useAutoHideBar, AutoHideBar, BarSpacer } from '@/desktop/autoHide';
+import { useAutoHideBar, AutoHideBar, BarSpacer, useRevealAtTop } from '@/desktop/autoHide';
 import { useDesktopUi } from '@/desktop/uiStore';
 import { typingInField } from '@/desktop/uiStore';
 import { SANS, SERIF, tints, web, alpha } from '@/desktop/theme';
@@ -84,18 +84,23 @@ export default function SlokasScreen() {
   }, [mode, memo]);
   const pct = progress.total ? progress.done / progress.total : 0;
 
-  // ↑/↓ or ←/→ step through the list.
-  const selRef = useRef({ sel, mode });
-  selRef.current = { sel, mode };
+  // ↑/↓ or ←/→ step through the list — the rows actually shown (search and
+  // memorized filter applied), not the whole unfiltered list.
+  const selRef = useRef({ sel, mode, shown: [] as number[] });
+  selRef.current = { sel, mode, shown: rows.map((r) => r.i) };
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (typingInField() || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (document.querySelector('[data-vb-pop], [aria-modal="true"]')) return; // a popup has the keyboard
       const d = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
       if (!d) return;
       e.preventDefault();
-      const { sel: cur, mode: m } = selRef.current;
-      const nx = cur + d;
-      if (nx >= 0 && nx < LIST_LENGTH[m]) select(m, nx);
+      const { sel: cur, mode: m, shown } = selRef.current;
+      if (!shown.length) return;
+      const at = shown.indexOf(cur);
+      // Selected row filtered out: go to the first / last shown one.
+      const nx = at === -1 ? (d > 0 ? shown[0] : shown[shown.length - 1]) : shown[at + d];
+      if (nx !== undefined) select(m, nx);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -109,6 +114,8 @@ export default function SlokasScreen() {
 
   const focus = useDesktopUi((st) => st.focusMode);
   const bar = useAutoHideBar();
+  // Full screen: mouse to the top brings back the bar (search, Exit).
+  useRevealAtTop(focus, bar.height);
   return (
     <View style={[s.row, focus && { flexDirection: 'column' }]} {...(focus ? ({ onClick: bar.onTap } as any) : {})}>
       {focus ? <AutoHideBar bar={bar}><FocusBar label={`Most Quoted Ślokas · ${sel + 1} / ${LIST_LENGTH[mode]}`} /></AutoHideBar> : null}

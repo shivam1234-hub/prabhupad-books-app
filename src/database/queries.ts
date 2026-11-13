@@ -189,7 +189,7 @@ export async function getFavorites(): Promise<Favorite[]> {
     id: r.id,
     verseId: r.verse_id,
     bookSlug: r.book_slug,
-    canto: r.canto,
+    canto: r.canto ?? undefined,
     chapter: r.chapter,
     verse: r.verse,
     addedAt: r.added_at,

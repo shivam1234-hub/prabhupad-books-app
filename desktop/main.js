@@ -9,7 +9,7 @@ const path = require('path');
 const fs = require('fs');
 const { pathToFileURL } = require('url');
 const {
-  app, BrowserWindow, protocol, net, ipcMain, shell, Menu, Notification, dialog, nativeTheme,
+  app, BrowserWindow, protocol, net, ipcMain, shell, Menu, Notification, dialog, nativeTheme, screen,
 } = require('electron');
 
 // --- Startup safety net -------------------------------------------------------
@@ -79,7 +79,20 @@ const stateFile = () => path.join(app.getPath('userData'), 'window-state.json');
 function loadWindowState() {
   try {
     const s = JSON.parse(fs.readFileSync(stateFile(), 'utf8'));
-    if (typeof s.width === 'number' && typeof s.height === 'number') return s;
+    if (typeof s.width === 'number' && typeof s.height === 'number') {
+      // Saved on a monitor that's no longer attached (laptop undocked)? Then
+      // the window would open off-screen with no way to reach it: drop the
+      // position (Windows centres it) and fit the size to the main screen.
+      if (typeof s.x === 'number' && typeof s.y === 'number') {
+        const visible = screen.getAllDisplays().some(({ workArea: a }) =>
+          s.x + 80 > a.x && s.x + 80 < a.x + a.width && s.y + 20 >= a.y && s.y + 20 < a.y + a.height);
+        if (!visible) {
+          const a = screen.getPrimaryDisplay().workArea;
+          return { width: Math.min(s.width, a.width), height: Math.min(s.height, a.height), maximized: s.maximized };
+        }
+      }
+      return s;
+    }
   } catch { /* first launch, or unreadable — fall through to defaults */ }
   return { width: 1360, height: 860 };
 }
@@ -409,11 +422,12 @@ function registerHistoryShortcuts(win) {
       }
     }
     const back =
-      (input.alt && input.key === 'ArrowLeft') ||            // Windows/Linux
+      // (Not Option+← on a Mac: that moves the cursor by a word in text.)
+      (input.alt && input.key === 'ArrowLeft' && process.platform !== 'darwin') ||  // Windows/Linux
       (input.meta && input.key === '[') ||                   // macOS
       (input.meta && input.key === 'ArrowLeft');
     const forward =
-      (input.alt && input.key === 'ArrowRight') ||
+      (input.alt && input.key === 'ArrowRight' && process.platform !== 'darwin') ||
       (input.meta && input.key === ']') ||
       (input.meta && input.key === 'ArrowRight');
     if (back) { event.preventDefault(); navigateHistory(win, -1); }

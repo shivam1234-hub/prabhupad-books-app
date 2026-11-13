@@ -32,7 +32,8 @@ const HEADERS = {
 
 const ALLOWED_HOSTS = new Set(['vedabase.io', 'www.vedabase.io', 'vanisource.org', 'www.vanisource.org']);
 
-// Returns the response body as text, or null on any failure. Null means "could
+// Returns the response body as text, '' for a page that doesn't exist (404),
+// or null on any other failure. Null means "could
 // not reach it" — the renderer already treats that as a network error and falls
 // back to cached/offline content, exactly as on mobile.
 async function fetchText(rawUrl) {
@@ -55,6 +56,11 @@ async function fetchText(rawUrl) {
       redirect: 'follow',
       signal: controller.signal,
     });
+    // 404 / 410: the site answered — the page just doesn't exist (e.g. Bg 1.16,
+    // which lives inside 1.16-18). Return an empty page, not null, so the
+    // renderer treats it as "not found" and tries the combined verse instead
+    // of reporting "no internet". Other errors (5xx, 403…) stay network-ish.
+    if (res.status === 404 || res.status === 410) return '';
     if (!res.ok) { logFailure(url.toString(), `HTTP ${res.status}`); return null; }
     return await res.text();
   } catch (err) {

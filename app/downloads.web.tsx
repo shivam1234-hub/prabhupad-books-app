@@ -9,7 +9,7 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { BOOKS, BOOK_CATEGORIES } from '@/constants/books';
 import { BookCover } from '@/components/BookCover';
 import {
-  useDownloadStore, hydrateDownloads, enqueueBook, enqueueBooks, enqueueAllBooks, cancelBook, cancelAllDownloads, DownloadEntry,
+  useDownloadStore, hydrateDownloads, enqueueBook, enqueueBooks, enqueueAllBooks, cancelBook, cancelAllDownloads, redownloadBook, DownloadEntry,
 } from '@/services/downloadManager';
 import { BookMeta } from '@/types';
 import { Page, PageTitle, Btn, Chip, Segmented, SectionHeader, Card, ConfirmDialog } from '@/desktop/ui';
@@ -32,7 +32,7 @@ function Row({ book, entry, active, selecting, canSelect, checked, onToggle }: {
   const pct = entry?.total ? Math.min(1, entry.done / entry.total) : 0;
   let label: string; let btn: { label: string; kind: 'primary' | 'secondary' | 'dangerGhost'; on: () => void };
   switch (status) {
-    case 'downloaded': label = `✓ Offline · ${(entry?.total ?? 0).toLocaleString()} texts`; btn = { label: '↻ Re-download', kind: 'secondary', on: () => enqueueBook(book.slug) }; break;
+    case 'downloaded': label = `✓ Offline · ${(entry?.total ?? 0).toLocaleString()} texts`; btn = { label: '↻ Re-download', kind: 'secondary', on: () => { redownloadBook(book.slug); } }; break;
     case 'downloading': label = active ? `Downloading… ${Math.round(pct * 100)}%  (${entry?.done}/${entry?.total})` : 'Paused · will resume'; btn = { label: 'Stop', kind: 'dangerGhost', on: () => cancelBook(book.slug) }; break;
     case 'queued': label = 'Queued'; btn = { label: 'Stop', kind: 'dangerGhost', on: () => cancelBook(book.slug) }; break;
     case 'partial': label = `⚠ Partial · ${entry?.done}/${entry?.total}`; btn = { label: 'Resume', kind: 'primary', on: () => enqueueBook(book.slug) }; break;

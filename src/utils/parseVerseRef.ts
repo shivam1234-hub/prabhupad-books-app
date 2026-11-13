@@ -110,8 +110,30 @@ function buildLabel(bookSlug: string, canto: number | undefined, chapter: number
 // whichever book's addressing scheme (canto.chapter.verse vs chapter.verse)
 // applies. Returns null if the numbers don't parse into a plausible verse ref
 // for that book.
+// "ādi 1.1" / "madhya-lila 20.108" / "antya 5.1" → "1 1.1" etc.: the
+// Caitanya-caritāmṛta's līlā names stand for its first number.
+const LILAS: Array<[RegExp, string]> = [
+  [/^adi(?:[\s-]*lila)?\b[\s.:,]*/, '1 '],
+  [/^madhya(?:[\s-]*lila)?\b[\s.:,]*/, '2 '],
+  [/^antya(?:[\s-]*lila)?\b[\s.:,]*/, '3 '],
+];
+
+/** Lowercase and drop diacritics, so "Cc. Ādi", "Gītā" and "kṛṣṇa" match
+ *  what people type on an English keyboard. */
+export function foldRef(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+}
+
 function resolveNumbers(rest: string, bookSlug: string): { canto?: number; chapter: number; verse: string } | null {
   const hasCantos = CANTO_BOOKS.has(bookSlug);
+  if (bookSlug === 'cc') for (const [re, n] of LILAS) rest = rest.replace(re, n);
+
+  // Books that are a single chapter of texts (Īśopaniṣad, Nectar of
+  // Instruction): "iso 5" means mantra 5.
+  const book = getBook(bookSlug);
+  if (!hasCantos && /^\d+(-\d+)?$/.test(rest.trim()) && (book?.chapters?.length ?? 0) === 1) {
+    rest = `${book!.chapters![0].number}.${rest.trim()}`;
+  }
 
   // A trailing "a-b" is a combined-verse range (e.g. sb 11.19.36-39); keep it
   // intact rather than splitting on the hyphen, so the reference resolves to
@@ -160,6 +182,9 @@ function logicalGroupCount(q: string): number {
 
 function bareNumericRef(q: string): VerseRef | null {
   if (!/^\d+([.\-\s,]+\d+)*$/.test(q)) return null;
+  // "1-1-1" (three or more groups joined only by hyphens) is an address
+  // like "1.1.1", not chapter 1 + verses 1-1.
+  if (/^\d+(-\d+){2,}$/.test(q)) q = q.replace(/-/g, '.');
 
   const groupCount = logicalGroupCount(q);
   const defaultSlug = BARE_NUMBER_DEFAULT[groupCount];
@@ -206,7 +231,7 @@ export function parseVerseRef(input: string): VerseRef | null {
   if (!input || input.trim().length < 3) return null;
 
   // Normalise: lowercase, collapse whitespace, remove leading/trailing junk
-  const q = input.trim().toLowerCase().replace(/\s+/g, ' ');
+  const q = foldRef(input.trim()).replace(/\s+/g, ' ');
 
   // Fast path: an exact alias prefix whose remainder parses cleanly as numbers.
   for (const [alias, slug] of ALIASES) {
@@ -234,11 +259,12 @@ export function parseVerseRef(input: string): VerseRef | null {
  * Used when no verse number is given (e.g. user types just "gita").
  */
 export function findMatchingBooks(input: string) {
-  const q = input.trim().toLowerCase();
+  // Diacritics folded on both sides: "gita" finds "Bhagavad-gītā".
+  const q = foldRef(input.trim());
   return BOOKS.filter(
     (b) =>
       b.slug.includes(q) ||
-      b.title.toLowerCase().includes(q) ||
-      (b.subtitle ?? '').toLowerCase().includes(q)
+      foldRef(b.title).includes(q) ||
+      foldRef(b.subtitle ?? '').includes(q)
   );
 }

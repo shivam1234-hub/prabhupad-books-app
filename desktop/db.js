@@ -317,7 +317,7 @@ const api = {
 
   getFavorites() {
     return all('SELECT * FROM favorites ORDER BY added_at DESC').map((r) => ({
-      id: r.id, verseId: r.verse_id, bookSlug: r.book_slug, canto: r.canto,
+      id: r.id, verseId: r.verse_id, bookSlug: r.book_slug, canto: r.canto ?? undefined,
       chapter: r.chapter, verse: r.verse, addedAt: r.added_at, note: r.note,
     }));
   },

@@ -12,7 +12,7 @@ import { parseVerseRef, findMatchingBooks, VerseRef } from '@/utils/parseVerseRe
 import { BOOKS } from '@/constants/books';
 import { SANS, SERIF, HEADER_H, tints, web, alpha } from './theme';
 import { IconBtn, Popover, Kbd } from './ui';
-import { useDesktopUi } from './uiStore';
+import { useDesktopUi, typingInField } from './uiStore';
 import { THEMES, ThemeMenuContent, ReaderSettingsContent, HistoryMenuContent } from './HeaderMenus';
 
 type PState = { pressed: boolean; hovered?: boolean };
@@ -47,8 +47,13 @@ export function SearchBox({ width }: { width?: number } = {}) {
   const wrap = useRef<any>(null);
   const focusTick = useDesktopUi((s) => s.searchFocus);
 
+  // Only a Ctrl K pressed while this box is on screen focuses it — not one
+  // from earlier (a fresh box mounts e.g. when full screen opens or closes,
+  // and must not grab the keyboard from F / 1 / 2 / 3 / Esc).
+  const seenTick = useRef(focusTick);
   useEffect(() => {
-    if (focusTick === 0) return;
+    if (focusTick === seenTick.current) return;
+    seenTick.current = focusTick;
     input.current?.focus();
     input.current?.select?.();
   }, [focusTick]);
@@ -62,8 +67,11 @@ export function SearchBox({ width }: { width?: number } = {}) {
       out.push({ kind: 'ref', ref, primary: true });
       for (const a of ref.alternates ?? []) out.push({ kind: 'ref', ref: a, primary: false });
     }
-    if (text.length >= 2) for (const b of findMatchingBooks(text).slice(0, 4)) out.push({ kind: 'book', book: b });
+    // Enter takes the first row: a verse reference if the text is one,
+    // otherwise a full-text search — never a book that merely matches a word
+    // (e.g. "yoga" must search, not open a book whose subtitle says yoga).
     if (text.length >= 2) out.push({ kind: 'search', q: text });
+    if (text.length >= 2) for (const b of findMatchingBooks(text).slice(0, 4)) out.push({ kind: 'book', book: b });
     return out;
   }, [q]);
 
@@ -82,7 +90,8 @@ export function SearchBox({ width }: { width?: number } = {}) {
     const k = e.nativeEvent?.key ?? e.key;
     if (k === 'ArrowDown') { e.preventDefault?.(); setActive((a) => Math.min(a + 1, suggestions.length - 1)); }
     else if (k === 'ArrowUp') { e.preventDefault?.(); setActive((a) => Math.max(a - 1, 0)); }
-    else if (k === 'Escape') { setQ(''); input.current?.blur(); setFocused(false); }
+    // Esc belongs to the search box: don't let it also exit full screen.
+    else if (k === 'Escape') { e.preventDefault?.(); e.stopPropagation?.(); setQ(''); input.current?.blur(); setFocused(false); }
   };
 
   const open = focused && q.trim().length > 0;
@@ -276,6 +285,9 @@ export function DesktopHeader() {
  */
 let lastNav = 0;
 export function historyGo(delta: -1 | 1) {
+  // Never leave the page from under an open dialog (a note being written
+  // would be lost, or saved to the page you land on) or while typing.
+  if (typeof document !== 'undefined' && (document.querySelector('[aria-modal="true"]') || typingInField())) return;
   const now = Date.now();
   if (now - lastNav < 350) return;
   lastNav = now;

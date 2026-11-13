@@ -15,6 +15,7 @@ import {
   setDownloadStatus,
   getAllDownloadStatuses,
   getResumableBookSlugs,
+  clearDownloadedChapters,
   type DownloadStatus,
 } from '@/database/queries';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -286,6 +287,17 @@ export async function enqueueBooks(slugs: string[]) {
 }
 
 export function enqueueBook(slug: string) {
+  return enqueueBooks([slug]);
+}
+
+/** Download a book again that is already offline: forget which chapters were
+ *  finished (so every chapter is checked again and missing texts fetched),
+ *  then queue it like a new download. enqueueBook alone skips "downloaded". */
+export async function redownloadBook(slug: string) {
+  const { queue, activeSlug } = useDownloadStore.getState();
+  if (queue.includes(slug) || activeSlug === slug) return;
+  await clearDownloadedChapters(slug, language());
+  patchEntry(slug, { status: 'not_downloaded', done: 0 });
   return enqueueBooks([slug]);
 }
 

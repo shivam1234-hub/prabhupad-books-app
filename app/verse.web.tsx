@@ -26,7 +26,7 @@ import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
 import { Presentation, PresentControls } from '@/desktop/Presentation';
 import { useAutoHideBar, AutoHideBar, BarSpacer, useRevealAtTop } from '@/desktop/autoHide';
 import { TagDialog, NoteDialog } from '@/desktop/VerseDialogs';
-import { useDesktopUi, typingInField } from '@/desktop/uiStore';
+import { useDesktopUi, typingInField, uiBusy } from '@/desktop/uiStore';
 import { hoverIntent } from '@/desktop/hoverIntent';
 import {
   bookCrumbs, flatChapters, chapterHref, verseHref, useVerseIds, idContains, shortRef, chapterMeta, isProseBook,
@@ -51,7 +51,8 @@ export default function VerseScreen() {
   // let the audience see only the text after a moment.
   useEffect(() => {
     if (!(focus && presentMode !== 'full')) return;
-    const id = setTimeout(() => useDesktopUi.getState().setBarsShown(false), 1800);
+    // …unless the user is typing in the search box or has a popup open.
+    const id = setTimeout(() => { if (!uiBusy()) useDesktopUi.getState().setBarsShown(false); }, 1800);
     return () => clearTimeout(id);
   }, [focus, presentMode, params.book, params.chapter, params.verse, params.canto]);
 
@@ -68,6 +69,8 @@ export default function VerseScreen() {
   const verseId = verse?.id ?? '';
   const fav = isFavorite(verseId);
   const myNote = getNote(verseId);
+  // A note written in an earlier session isn't in the store until read.
+  useEffect(() => { if (verseId) useFavoritesStore.getState().loadNoteFor(verseId); }, [verseId]);
   const [showNote, setShowNote] = useState(false);
   const [showTags, setShowTags] = useState(false);
 
@@ -129,10 +132,16 @@ export default function VerseScreen() {
       };
     }
     const cur = verse?.verseRange || verseNum;
-    let i = ids.findIndex((id) => id === cur || idContains(id, verseNum));
+    const i = ids.findIndex((id) => id === cur || idContains(id, verseNum));
+    // A combined verse ("8-12") that the id list doesn't have as such (the
+    // list is still the plain 1…N fallback): its neighbours are the texts
+    // just before its first and just after its last number.
+    const range = /^(\d+)-(\d+)$/.exec(cur);
+    const iPrev = i !== -1 ? i - 1 : range ? ids.findIndex((id) => idContains(id, String(+range[1] - 1))) : -1;
+    const iNext = i !== -1 ? i + 1 : range ? ids.findIndex((id) => idContains(id, String(+range[2] + 1))) : parseInt(verseNum, 10);
     const ci = chs.findIndex((c) => c.chapter === chapter && c.canto === canto);
     let prev; let next;
-    if (i > 0) prev = { href: verseHref(book.slug, chapter, ids[i - 1], canto), label: `Text ${ids[i - 1]}` };
+    if (iPrev >= 0) prev = { href: verseHref(book.slug, chapter, ids[iPrev], canto), label: `Text ${ids[iPrev]}` };
     else if (ci === 0 && book.frontMatter?.length) {
       const fm = book.frontMatter[book.frontMatter.length - 1];
       prev = { href: verseHref(book.slug, 1, fm.id), label: fm.title };
@@ -140,8 +149,7 @@ export default function VerseScreen() {
       const pc = chs[ci - 1];
       prev = { href: verseHref(book.slug, pc.chapter, String(pc.verseCount), pc.canto), label: `Chapter ${pc.chapter}, last text` };
     }
-    if (i === -1) i = parseInt(verseNum, 10) - 1;
-    if (i >= 0 && i < ids.length - 1) next = { href: verseHref(book.slug, chapter, ids[i + 1], canto), label: `Text ${ids[i + 1]}` };
+    if (iNext > 0 && iNext < ids.length) next = { href: verseHref(book.slug, chapter, ids[iNext], canto), label: `Text ${ids[iNext]}` };
     else if (ci >= 0 && ci < chs.length - 1) {
       const nc = chs[ci + 1];
       next = { href: verseHref(book.slug, nc.chapter, '1', nc.canto), label: `Chapter ${nc.chapter}${nc.canto ? ` (${nc.canto})` : ''}, text 1` };
@@ -161,6 +169,8 @@ export default function VerseScreen() {
   useRevealAtTop(focus, bar.height);
   const closeFind = () => { setFindOpen(false); setFindQ(''); setActive(0); };
   useEffect(() => { setActive(0); }, [findQ]);
+  // Another page (TOC, link, search result…): start the find count again.
+  useEffect(() => { setActive(0); }, [params.book, params.canto, params.chapter, params.verse]);
   useEffect(() => {
     if (!findOpen || !findQ.trim() || !count) return;
     const el = document.querySelector(`[data-vb-match="${active}"]`) as HTMLElement | null;
@@ -175,6 +185,8 @@ export default function VerseScreen() {
     const onKey = (e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey;
       const ui = useDesktopUi.getState();
+      // A dialog (note, tags) has the keyboard: leave Ctrl+F to it.
+      if (mod && e.key.toLowerCase() === 'f' && document.querySelector('[aria-modal="true"]')) return;
       if (mod && e.key.toLowerCase() === 'f' && ui.focusMode) { e.preventDefault(); ui.focusSearch(); return; }
       if (mod && e.key.toLowerCase() === 'f') {
         e.preventDefault();

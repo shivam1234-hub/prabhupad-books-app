@@ -53,7 +53,7 @@ export function shortRef(book: BookMeta, chapter: number, v: string, canto?: num
   if (book.slug === 'cc' && canto) return `CC ${LILA[canto - 1] ?? canto} ${chapter}.${v}`;
   const head = ABBR[book.slug] ?? book.title;
   if (isFlatBook(book.slug) && (book.chapters?.length ?? 0) <= 1) return `${head} ${v}`;
-  return canto !== undefined ? `${head} ${canto}.${chapter}.${v}` : `${head} ${chapter}.${v}`;
+  return canto != null ? `${head} ${canto}.${chapter}.${v}` : `${head} ${chapter}.${v}`;
 }
 
 export function cantoLabel(book: BookMeta, canto: number): string {

@@ -66,7 +66,10 @@ export const useDesktopUi = create<DesktopUi>((set, get) => ({
   focusMode: false,
   setFocusMode: (on) => {
     if (get().focusMode === on) return;
-    set({ focusMode: on });
+    // Entering or leaving full screen always starts with the bars visible —
+    // otherwise a presentation that had hidden them leaves the normal view
+    // without its header and toolbar.
+    set({ focusMode: on, barsShown: true });
     // The HTML Fullscreen API makes the Electron window itself full screen.
     try {
       if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
@@ -91,6 +94,13 @@ export function presenting(pathname?: string): boolean {
 }
 
 /** True when keyboard focus is in a text field (so page shortcuts stand down). */
+/** The user is busy with something the bars must not hide from under them:
+ *  typing in a field, or a popup / dialog / suggestion list is open. */
+export function uiBusy(): boolean {
+  if (typeof document === 'undefined') return false;
+  return typingInField() || !!document.querySelector('[data-vb-pop], [aria-modal="true"]');
+}
+
 export function typingInField(): boolean {
   if (typeof document === 'undefined') return false;
   const el = document.activeElement as HTMLElement | null;

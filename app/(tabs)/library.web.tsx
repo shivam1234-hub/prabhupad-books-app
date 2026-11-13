@@ -1,6 +1,6 @@
 // Desktop Library: the whole collection as a grid of covers, grouped by the
 // same categories as the phone's Library tab.
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { useTheme } from '@/hooks/useTheme';
@@ -75,11 +75,22 @@ export default function LibraryScreen() {
   const { colors } = useTheme();
   const showTour = useTourStore((st) => st.show);
   const [filter, setFilter] = useState<BookCategory | 'all'>('all');
-  const [offline, setOffline] = useState<Set<string>>(new Set());
+  const [saved, setSaved] = useState<Set<string>>(new Set());
+  const entries = useDownloadStore((st) => st.entries);
 
   useFocusEffect(useCallback(() => {
-    getDownloadedBookSlugs().then((x) => setOffline(new Set(x))).catch(() => {});
+    getDownloadedBookSlugs().then((x) => setSaved(new Set(x))).catch(() => {});
   }, []));
+  // Live too: a download that finishes (or a book re-downloaded) while this
+  // page is open shows "✓ Offline" at once, not after leaving and coming back.
+  const offline = useMemo(() => {
+    const out = new Set(saved);
+    for (const [slug, e] of Object.entries(entries)) {
+      if (e.status === 'downloaded') out.add(slug);
+      else if (e.status === 'downloading' || e.status === 'queued' || e.status === 'not_downloaded') out.delete(slug);
+    }
+    return out;
+  }, [saved, entries]);
 
   const cats = BOOK_CATEGORIES.filter((c) => filter === 'all' || c.id === filter)
     .map((c) => ({ ...c, books: BOOKS.filter((b) => b.category === c.id) }))

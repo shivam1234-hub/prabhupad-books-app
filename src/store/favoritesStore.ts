@@ -21,7 +21,12 @@ interface FavoritesState {
   addVerseTag: (verseId: string, tagId: string) => Promise<void>;
   removeVerseTag: (verseId: string, tagId: string) => Promise<void>;
   loadVerseTagsFor: (verseId: string) => Promise<void>;
+  /** Read a verse's note from the database into the store (once). */
+  loadNoteFor: (verseId: string) => Promise<void>;
 }
+
+// Verses whose note has been looked up in the database this session.
+const notesChecked = new Set<string>();
 
 let idCounter = 0;
 function uid() {
@@ -42,7 +47,13 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     const tagLists = await Promise.all(favorites.map((f) => queries.getVerseTagIds(f.verseId)));
     const verseTags: Record<string, string[]> = {};
     favorites.forEach((f, i) => { verseTags[f.verseId] = tagLists[i]; });
+    // …and their notes (the Saved cards show them). Notes on unsaved verses
+    // are read when that verse is opened (loadNoteFor).
+    const noteList = await Promise.all(favorites.map((f) => queries.getNote(f.verseId).catch(() => null)));
+    const notes: Record<string, Note> = { ...get().notes };
+    favorites.forEach((f, i) => { notesChecked.add(f.verseId); const n = noteList[i]; if (n && !notes[f.verseId]) notes[f.verseId] = n; });
     set({
+      notes,
       favorites,
       favoriteIds: new Set(favorites.map((f) => f.verseId)),
       tags,
@@ -77,7 +88,9 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
   isFavorite: (verseId) => get().favoriteIds.has(verseId),
 
   updateNote: async (verseId, content) => {
-    const existing = get().notes[verseId];
+    // Reuse the stored note's id, so editing replaces it instead of adding a
+    // second note for the same verse.
+    const existing = get().notes[verseId] ?? (await queries.getNote(verseId).catch(() => null)) ?? undefined;
     const note: Note = {
       id: existing?.id ?? uid(),
       verseId,
@@ -132,6 +145,13 @@ export const useFavoritesStore = create<FavoritesState>((set, get) => ({
     set((s) => ({
       verseTags: { ...s.verseTags, [verseId]: (s.verseTags[verseId] ?? []).filter((t) => t !== tagId) },
     }));
+  },
+
+  loadNoteFor: async (verseId) => {
+    if (!verseId || notesChecked.has(verseId) || get().notes[verseId]) return;
+    notesChecked.add(verseId);
+    const note = await queries.getNote(verseId).catch(() => null);
+    if (note && !get().notes[verseId]) set((s) => ({ notes: { ...s.notes, [verseId]: note } }));
   },
 
   loadVerseTagsFor: async (verseId) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Verse } from '@/types';
 import {
   fetchVerse, fetchVerseDetailed, fetchChapterVerseList, fetchChapterTitle,
@@ -41,22 +41,30 @@ export function useVerse(bookSlug: string, chapter: number, verse: string, canto
   const [data, setData] = useState<Verse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Only the latest request may update the screen: when Next is pressed
+  // twice quickly, an older fetch finishing last must not show its verse
+  // under the newer verse's number (and get saved/noted as that verse).
+  const latest = useRef(0);
 
   const load = useCallback(async () => {
+    const req = ++latest.current;
     setLoading(true);
     setError(null);
     try {
       const v = await fetchVerse(bookSlug, chapter, verse, canto, language);
+      if (req !== latest.current) return;
       setData(v);
       if (!v) setError('Could not load verse. Check your connection.');
     } catch {
-      setError('Failed to load verse.');
+      if (req === latest.current) setError('Failed to load verse.');
     } finally {
-      setLoading(false);
+      if (req === latest.current) setLoading(false);
     }
   }, [bookSlug, chapter, verse, canto, language]);
 
-  useEffect(() => { load(); }, [load]);
+  // A different verse: drop the old one at once, so nothing (Save, Note…)
+  // can act on it while the new one loads.
+  useEffect(() => { setData(null); load(); }, [load]);
 
   return { verse: data, loading, error, refresh: load };
 }
