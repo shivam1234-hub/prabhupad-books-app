@@ -108,6 +108,8 @@ export interface ReaderVerseProps {
   onPersonHover?: (p: Personality, at: Anchor | null) => void;
   /** Smaller type for the continuous chapter view. */
   compact?: boolean;
+  /** Prose pages use normal-weight body text instead of bold verse translations. */
+  prose?: boolean;
 }
 
 const LABELS: Record<SectionKey, string> = {
@@ -120,7 +122,7 @@ const LABELS: Record<SectionKey, string> = {
 
 export function ReaderVerse({
   verse, display, query = '', activeMatch = 0, onMatchCount, onWordLookup,
-  onCitationHover, onCitationOpen, onPersonHover, compact,
+  onCitationHover, onCitationOpen, onPersonHover, compact, prose = false,
 }: ReaderVerseProps) {
   const { colors, isDark } = useTheme();
   const settings = useSettingsStore((s) => s.settings);
@@ -312,7 +314,7 @@ export function ReaderVerse({
       <View key="tl" style={s.section}>
         {verse.synonyms || verse.devanagari ? heading('translation') : null}
         {isOpen('translation') ? paras.translation.map((segs, i) => (
-          <Text key={i} selectable dataSet={{ lookup: 'en' }} style={[s.body, s.translation, { color: colors.translation, fontSize: px(base + 1), lineHeight: px((base + 1) * 1.65) }]}>
+          <Text key={i} selectable dataSet={{ lookup: 'en' }} style={[s.body, !prose && s.translation, { color: colors.translation, fontSize: px(base + 1), lineHeight: px((base + 1) * 1.65) }]}>
             {renderSegs(segs, `tl${i}`)}
           </Text>
         )) : null}

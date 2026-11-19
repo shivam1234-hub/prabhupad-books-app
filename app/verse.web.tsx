@@ -287,7 +287,7 @@ export default function VerseScreen() {
         </AutoHideBar>
 
         {presenting && verse ? (
-          <Presentation verse={verse} mode={presentMode as 'sloka' | 'translation'} label={heading} onTap={bar.onTap} />
+          <Presentation verse={verse} mode={presentMode as 'sloka' | 'translation'} label={heading} onTap={bar.onTap} prose={!!book && (isProseBook(book) || !!fmTitle)} />
         ) : (
         <View style={{ flex: 1, flexDirection: 'row', minHeight: 0 }} {...({ onClick: bar.onTap } as any)}>
           <ScrollView ref={scrollRef} style={{ flex: 1 }} contentContainerStyle={s.scroll} onScroll={(e) => { onScroll(e); bar.onScrollY(e.nativeEvent.contentOffset.y); }} scrollEventThrottle={32}>
@@ -312,6 +312,7 @@ export default function VerseScreen() {
                   <ReaderVerse
                     verse={verse}
                     display={display}
+                    prose={!!book && (isProseBook(book) || !!fmTitle)}
                     query={findOpen ? findQ : ''}
                     activeMatch={active}
                     onMatchCount={setCount}

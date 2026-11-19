@@ -48,7 +48,7 @@ function fitSize(box: HTMLElement, content: HTMLElement): number {
   return Math.floor(lo * 2) / 2;
 }
 
-export function Presentation({ verse, mode, label, onTap }: { verse: Verse; mode: Exclude<PresentMode, 'full'>; label?: string; onTap?: (e: any) => void }) {
+export function Presentation({ verse, mode, label, onTap, prose = false }: { verse: Verse; mode: Exclude<PresentMode, 'full'>; label?: string; onTap?: (e: any) => void; prose?: boolean }) {
   const { colors } = useTheme();
   const zoom = useDesktopUi((st) => st.presentZoom);
   const zoomPresent = useDesktopUi((st) => st.zoomPresent);
@@ -144,7 +144,7 @@ export function Presentation({ verse, mode, label, onTap }: { verse: Verse; mode
           </>
         ) : (
           translation.map((p, i) => (
-            <Text key={i} selectable style={[s.translation, { color: colors.translation }, i > 0 && s.gapAbove]}>{p}</Text>
+            <Text key={i} selectable style={[s.translation, { color: colors.translation, fontWeight: prose ? '400' : '700' }, i > 0 && s.gapAbove]}>{p}</Text>
           ))
         )}
       </View>

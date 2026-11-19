@@ -18,7 +18,7 @@ import { Breadcrumbs, Btn, IconBtn, Segmented, Chip, Empty } from '@/desktop/ui'
 import { useDesktopUi, typingInField } from '@/desktop/uiStore';
 import { FocusBar, FullScreenBtn } from '@/desktop/FocusBar';
 import { useAutoHideBar, AutoHideBar, BarSpacer, useRevealAtTop } from '@/desktop/autoHide';
-import { bookCrumbs, flatChapters, chapterHref, verseHref, shortRef } from '@/desktop/bookNav';
+import { bookCrumbs, flatChapters, chapterHref, verseHref, shortRef, isProseBook } from '@/desktop/bookNav';
 import { SANS, SERIF, READING_W_WIDE, tints, web } from '@/desktop/theme';
 
 type PState = { pressed: boolean; hovered?: boolean };
@@ -205,7 +205,7 @@ export default function ChapterScreen() {
                           </Text>
                         )}
                       </Pressable>
-                      <ReaderVerse verse={v} display={display} compact />
+                      <ReaderVerse verse={v} display={display} compact prose={isProseBook(book)} />
                     </View>
                   ))}
                 </View>
