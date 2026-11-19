@@ -38,6 +38,7 @@ export function verseHref(r: { bookSlug: string; chapter: number; verse: string 
 
 export function SearchBox({ width }: { width?: number } = {}) {
   const { colors } = useTheme();
+  const { width: viewportWidth } = useWindowDimensions();
   const t = tints(colors);
   const router = useRouter();
   const [q, setQ] = useState('');
@@ -97,7 +98,7 @@ export function SearchBox({ width }: { width?: number } = {}) {
   const open = focused && q.trim().length > 0;
 
   return (
-    <View ref={wrap} style={[s.searchWrap, width ? { width } : null]}>
+    <View ref={wrap} style={[s.searchWrap, viewportWidth < 900 && s.searchWrapNarrow, width ? { width } : null]}>
       <View
         style={[
           s.search,
@@ -203,14 +204,15 @@ export function DesktopHeader() {
   useEffect(() => { if (readerTick) setMenu('reader'); }, [readerTick]);
   const { width } = useWindowDimensions();
   const compact = width < 1240;
+  const narrow = width < 900;
   const hist = useHistoryState();
   const themeIcon = THEMES.find((th) => th.mode === themeMode)?.icon ?? '◐';
 
   return (
-    <View style={[s.bar, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+    <View style={[s.bar, narrow && s.barNarrow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
       <View style={s.histBtns}>
-        <IconBtn icon="←" tip="Back (Alt+←)" size={32} disabled={!hist.back} onPress={() => historyGo(-1)} />
-        <IconBtn icon="→" tip="Forward (Alt+→)" size={32} disabled={!hist.forward} onPress={() => historyGo(1)} />
+        <IconBtn icon="←" tip="Back (Ctrl+[ or Alt+←)" size={32} disabled={!hist.back} onPress={() => historyGo(-1)} />
+        <IconBtn icon="→" tip="Forward (Ctrl+] or Alt+→)" size={32} disabled={!hist.forward} onPress={() => historyGo(1)} />
       </View>
       <Pressable
         onPress={() => router.push('/library')}
@@ -234,7 +236,7 @@ export function DesktopHeader() {
               onPress={() => router.push(n.path as any)}
               accessibilityRole="link"
               accessibilityState={{ selected: on }}
-              style={(st: PState) => [s.navItem, { backgroundColor: st.hovered && !on ? t.hover : 'transparent' }, web({ cursor: 'pointer', transition: 'background-color 120ms' })]}
+              style={(st: PState) => [s.navItem, narrow && s.navItemNarrow, { backgroundColor: st.hovered && !on ? t.hover : 'transparent' }, web({ cursor: 'pointer', transition: 'background-color 120ms' })]}
             >
               <Text style={[s.navText, { color: on ? colors.primary : colors.textSecondary }]}>{n.label}</Text>
               <View style={[s.navLine, { backgroundColor: on ? colors.primary : 'transparent' }]} />
@@ -279,9 +281,9 @@ export function DesktopHeader() {
 
 /**
  * Back / forward through the window's history. One entry point for the header
- * buttons, Alt+← / →, Backspace, mouse side buttons and the main process's
- * Windows app-command, with a short guard so one physical press that arrives
- * by two routes (mouseup button 3 and app-command) only moves once.
+ * buttons, Ctrl+[ / ], Alt+← / →, Backspace, mouse side buttons and the main
+ * process's Windows app-command, with a short guard so one physical press that
+ * arrives by two routes (mouseup button 3 and app-command) only moves once.
  */
 let lastNav = 0;
 export function historyGo(delta: -1 | 1) {
@@ -301,15 +303,18 @@ const s = StyleSheet.create({
     height: HEADER_H, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, gap: 8,
     borderBottomWidth: StyleSheet.hairlineWidth, zIndex: 50,
   },
+  barNarrow: { paddingHorizontal: 10, gap: 4 },
   logo: { flexDirection: 'row', alignItems: 'center', gap: 10, marginRight: 18 },
   logoImg: { width: 34, height: 34, borderRadius: 8 },
   logoText: { fontFamily: SERIF, fontSize: 19, fontWeight: '700', letterSpacing: 0.2, lineHeight: 22 },
   logoSub: { fontFamily: SERIF, fontSize: 11, fontStyle: 'italic', lineHeight: 14 },
   nav: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   navItem: { height: 38, paddingHorizontal: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  navItemNarrow: { paddingHorizontal: 6 },
   navText: { fontFamily: SANS, fontSize: 14, fontWeight: '600' },
   navLine: { position: 'absolute', bottom: -11, left: 12, right: 12, height: 2.5, borderRadius: 2 },
   searchWrap: { width: 400, flexShrink: 1, minWidth: 220 },
+  searchWrapNarrow: { minWidth: 150 },
   search: { flexDirection: 'row', alignItems: 'center', height: 38, borderRadius: 10, borderWidth: 1.5, paddingLeft: 12, paddingRight: 8, gap: 8 },
   searchIcon: { fontSize: 18, marginTop: -2 },
   searchInput: { flex: 1, fontFamily: SANS, fontSize: 14, height: 34 },

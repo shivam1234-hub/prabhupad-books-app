@@ -138,6 +138,7 @@ export function HistoryMenuContent({ onClose }: { onClose: () => void }) {
         <View style={{ flex: 1 }}>
           <Text style={[s.histTitle, { color: colors.text }]}>Recent pages</Text>
           <Text style={[s.rowDesc, { color: colors.textMuted }]}>Scroll position is remembered</Text>
+          <Text style={[s.rowDesc, { color: colors.textMuted }]}>Ctrl+[ / Ctrl+] to go back or forward</Text>
         </View>
         {entries.length > 0 ? (
           <Pressable onPress={clear} style={(st: PState) => [s.clearBtn, { borderColor: colors.border, backgroundColor: st.hovered ? t.hover : 'transparent' }, web({ cursor: 'pointer' })]}>

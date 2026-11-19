@@ -279,7 +279,7 @@ function buildMenu() {
               'Ctrl+K  Search the library',
               'Ctrl+F  Find in this page (verse pages)',
               '← / →  Previous / next verse or chapter',
-              'Alt+← / Alt+→  Back / forward',
+              'Ctrl+[ / Ctrl+] or Alt+← / Alt+→  Back / forward',
               '[  Show / hide the contents sidebar',
               'Esc  Close a popup',
               'F  Full-screen reading (verse, chapter, Ślokas pages)',
@@ -320,8 +320,8 @@ function createWindow() {
     height: state.height,
     x: state.x,
     y: state.y,
-    minWidth: 1000,
-    minHeight: 640,
+    minWidth: 800,
+    minHeight: 500,
     title: 'Vedabase',
     // Matches the page background so the window never flashes orange/white.
     backgroundColor: nativeTheme.shouldUseDarkColors ? '#100D08' : '#F7F3EC',
@@ -423,10 +423,12 @@ function registerHistoryShortcuts(win) {
     }
     const back =
       // (Not Option+← on a Mac: that moves the cursor by a word in text.)
+      (input.control && input.key === '[') ||
       (input.alt && input.key === 'ArrowLeft' && process.platform !== 'darwin') ||  // Windows/Linux
       (input.meta && input.key === '[') ||                   // macOS
       (input.meta && input.key === 'ArrowLeft');
     const forward =
+      (input.control && input.key === ']') ||
       (input.alt && input.key === 'ArrowRight' && process.platform !== 'darwin') ||
       (input.meta && input.key === ']') ||
       (input.meta && input.key === 'ArrowRight');
